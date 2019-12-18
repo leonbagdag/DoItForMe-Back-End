@@ -1,58 +1,69 @@
 from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime
 
 db = SQLAlchemy()
 
 class User(db.Model):
-    __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key = True)
     role = db.Column(db.String(10), default = 'user', nullable = False) # Role is user or admin
     username = db.Column(db.String(80), unique = True, nullable = False)
     email = db.Column(db.String(120), unique = True, nullable = False)
-    user_profile = db.relationship()
+    password = db.Column(db.String(20), nullable = False)
+    register_date = db.Column(db.DateTime, default = datetime.now)
+
+    profile = db.relationship('Userprofile', backref='', uselist=False, lazy=True)
+    review = db.relationship('Review', backref="review", lazy=True)
 
     def __repr__(self):
         return '<User %r>' %self.username
     
     def serialize(self):
         return {
+            "id": self.id,
             "username": self.username,
             "email": self.email
+            "since": self.register_date.year
         }
 
 class Userprofile(db.Model): # Relación 1 a 1 con User
-    __tablename__ = 'userinfo'
     id = db.Column(db.Integer, primary_key = True)
-    fname = db.Column(db.String(80), nullable = False)
-    lname = db.Column(db.String(80), nullable = False)
-    region = db.Column(db.String(80), nullable = True)
-    comuna = db.Column(db.String(80), nullable = True)
-    address_1 = db.Column(db.String(120), nullable = True)
-    address_2 = db.Column(db.String(120), nullable = True)
-    rut = db.Column(db.String(10), nullable = True)
-    rut_serial = db.Column(db.String(20), nullable = True)
+    fname = db.Column(db.String(80))
+    lname = db.Column(db.String(80))
+    region = db.Column(db.String(80))
+    comuna = db.Column(db.String(80))
+    address_1 = db.Column(db.String(120))
+    address_2 = db.Column(db.String(120))
+    rut = db.Column(db.String(10))
+    rut_serial = db.Column(db.String(20))
     score_as_provider = db.Column(db.Float, default = 0)
     score_as_employer = db.Column(db.Float, default = 0)
-    info_owner = db.Column(db.Integer, db.ForeignKey('User.id'))
+
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
     def __repr__(self):
-        return '<User %r>' %self.fname
+        return '<Profile %r>' %self.fname
     
     def serialize(self):
         return {
             "firstName": self.fname,
             "lastName": self.lname,
+            "region": self.region,
+            "comuna": self.comuna,
+            "address1": self.address_1,
+            "address2": self.address_2,
             "score_as_provider": self.score_as_provider,
             "score_as_employer": self.score_as_employer
         }
 
 class Review(db.Model): #Relación 1 a muchos con User
-    __tablename__ = 'reviews'
     id = db.Column(db.Integer, primary_key = True)
-    userRole = db.Column(db.String(10), nullable = False) #Provider or Employer
-    review = db.Column(db.Text, nullable = True)
+    review = db.Column(db.Text)
     score = db.Column(db.Float, nullable = False)
-    serviceID = db.Column(db.Integer, nullable = False)
-    fromUserID = db.Column(db.Integer, nullable = False) #Must be opposite to userRole
+    service_id = db.Column(db.Integer, nullable = False)
+    from_user = db.Column(db.Integer, nullable = False) #user that make the review, from front-end
+    user_as = db.Column(db.String(10), nullable = False) #role of user being qualified, from front-end = provider or employer
+
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id')) #owner of the review
 
     def __repr__(self):
         return '<Review %r>' %self.id
@@ -61,6 +72,7 @@ class Review(db.Model): #Relación 1 a muchos con User
         return {
             "review": self.review,
             "score": self.score,
-            "from": self.fromUserID,
-            "Service": self.serviceID,
+            "Service": self.service_id,
+            "from": self.from_user,
+            "user as": self.user_as
         }
