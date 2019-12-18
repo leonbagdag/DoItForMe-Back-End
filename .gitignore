@@ -6,7 +6,6 @@ database.db
 diagram.png
 public/*
 dist/*
-migrations/*
 package.json
 
 __pycache__/
