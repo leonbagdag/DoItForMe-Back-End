@@ -21,6 +21,7 @@ class User(db.Model):
     reviews = db.relationship('Review', back_populates='user', lazy = True) # 1 to many with reviews
     categories = db.relationship('Category', secondary=user_category, back_populates='users', lazy = True) #many to many with categories
     offers = db.relationship('Offer', back_populates='user', lazy = True) # 1 to many with offers
+    services_req = db.relationship('Service_req', back_populates='user', lazy = True) # 1 to many with service_req
 
     def __repr__(self):
         return '<User %r>' % self.username
@@ -36,9 +37,10 @@ class User(db.Model):
 class Category(db.Model):
     id = db.Column(db.Integer, primary_key = True)
     name = db.Column(db.String(20), unique = True, nullable = False)
-    logo = db.Column(db.String(60), unique = True, nullable = False)
+    logo = db.Column(db.String(60), unique = True, nullable = False) #From Font-awsome
 
     users = db.relationship('User', secondary=user_category, back_populates='categories', lazy = True) #many to many with users
+    services = db.relationship('Service_req', back_populates='category', lazy = True) #1 to many with service_req
 
     def __repr__(self):
         return '<Category %r>' % self.name
@@ -50,7 +52,7 @@ class Category(db.Model):
             'logo': self.logo
         }
 
-class Userprofile(db.Model): # Relación 1 a 1 con User
+class Userprofile(db.Model): # 1 to 1 rel with User
     id = db.Column(db.Integer, primary_key = True)
     fname = db.Column(db.String(80))
     lname = db.Column(db.String(80))
@@ -81,7 +83,7 @@ class Userprofile(db.Model): # Relación 1 a 1 con User
             "score_as_employer": self.score_as_employer
         }
 
-class Review(db.Model): #Relación 1 a muchos con User
+class Review(db.Model): #1 to many rel with User
     id = db.Column(db.Integer, primary_key = True)
     review_body = db.Column(db.Text)
     score = db.Column(db.Float, nullable = False)
@@ -110,8 +112,10 @@ class Offer(db.Model):
     offer_status = db.Column(db.String(10), default = 'active', nullabe = False)
     offer_date = db.Column(db.DateTime, default = datetime.now)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id')) # user offering a service
+    service_id = db.Column(db.Integer, db.ForeignKey('service_req.id'))
 
     user = db.relationship('User', back_populates = 'offers', lazy = True) # 1 to many with user
+    service = db.relationship('Service_req', back_populates = 'offers', lazy = True) #1 to many with service_req
 
     def __repr__(self):
         return '<Offer %r>' % self.id
@@ -132,7 +136,13 @@ class Service_req(db.Model):
     provider_id = db.Column(db.Integer, default = 0, nullable = False) # user winner of the contract, from front-end. If 0 is an open service req
     request_date = db.Column(db.DateTime, default = datetime.now, nullable = False)
     request_status = db.Column(db.String(10), default = 'active', nullable = False) #status options: open, paused, closed
-    urgency = db.Column(db.String(10), nullable = False), #urgencies: low, medium, high
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    category_id = db.Column(db.Integer, db.ForeignKey('category.id'))
+    
+    user = db.relationship('User', back_populates='services_req', lazy = True)
+    category = db.relationship('Category', back_populates='services', lazy = True) # 1 to many with category
+    offers = db.relationship('Offer', back_populates='service', lazy = True) # 1 to many with offer
+    contract = db.relationship('Contract', back_populates='service', uselist=False, lazy = True) #1 to 1 with Contract
 
     def __repr__(self):
         return '<Service %r>' % self.id
@@ -145,13 +155,18 @@ class Service_req(db.Model):
             'provider': self.provider_id,
             'date': self.request_date,
             'status': self.request_status,
-            'urgency': self.urgency
+            'employer': self.user_id,
+            'category': self.category_id
         }
 
 class Cotract(db.Model):
     id = db.column(db.Integer, primary_key = True)
     contract_status = db.Column(db.String(10), default = 'active', nullable = False) # status options: active, paused, cancelled
     contract_date = db.Column(db.DateTime, default = datetime.now, nullable = False)
+    service_id = db.Column(db.Integer, db.ForeignKey('service_req.id'))
+
+    service = db.relationship('Service_req', back_populates='contact', lazy = True) #1 to 1 with service_req
+
     
     def __repr__(self):
         return '<Contact %r>' %self.id
@@ -160,5 +175,6 @@ class Cotract(db.Model):
         return {
             'id': self.id,
             'status': self.contract_status,
-            'date': self.contract_date
+            'date': self.contract_date,
+            'service': self.service_id
         }
