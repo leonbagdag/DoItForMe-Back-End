@@ -3,7 +3,7 @@ from datetime import datetime
 
 db = SQLAlchemy()
 
-# Join tables between user and category
+# Join table between user and category
 user_category = db.Table('habilities', db.metadata,
     db.Column("user_id", db.Integer, db.ForeignKey("user.id")),
     db.Column("category_id", db.Integer, db.ForeignKey("category.id"))
@@ -17,11 +17,11 @@ class User(db.Model):
     password = db.Column(db.String(30), nullable = False)
     register_date = db.Column(db.DateTime, default = datetime.now, nullable = False)
 
-    profile = db.relationship('Userprofile', back_populates='user', uselist = False, lazy = True) # 1 to 1 with profile
+    profile = db.relationship('Profile', back_populates='user', uselist = False, lazy = True) # 1 to 1 with profile
     reviews = db.relationship('Review', back_populates='user', lazy = True) # 1 to many with reviews
     categories = db.relationship('Category', secondary=user_category, back_populates='users', lazy = True) #many to many with categories
     offers = db.relationship('Offer', back_populates='user', lazy = True) # 1 to many with offers
-    services_req = db.relationship('Service_req', back_populates='user', lazy = True) # 1 to many with service_req
+    services = db.relationship('Service_req', back_populates='user', lazy = True) # 1 to many with service_req
 
     def __repr__(self):
         return '<User %r>' % self.username
@@ -52,7 +52,7 @@ class Category(db.Model):
             'logo': self.logo
         }
 
-class Userprofile(db.Model): # 1 to 1 rel with User
+class Profile(db.Model): # 1 to 1 rel with User
     id = db.Column(db.Integer, primary_key = True)
     fname = db.Column(db.String(80))
     lname = db.Column(db.String(80))
@@ -66,7 +66,7 @@ class Userprofile(db.Model): # 1 to 1 rel with User
     score_as_employer = db.Column(db.Float, default = 0)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
-    user = db.relationship('User', back_populates='profile', lazy = True) # one to one with user
+    user = db.relationship('User', back_populates='profile', lazy = True) # 1 to 1 with user
 
     def __repr__(self):
         return '<Profile %r>' % self.fname
@@ -139,7 +139,7 @@ class Service_req(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'))
     
-    user = db.relationship('User', back_populates='services_req', lazy = True)
+    user = db.relationship('User', back_populates='services', lazy = True)
     category = db.relationship('Category', back_populates='services', lazy = True) # 1 to many with category
     offers = db.relationship('Offer', back_populates='service', lazy = True) # 1 to many with offer
     contract = db.relationship('Contract', back_populates='service', uselist=False, lazy = True) #1 to 1 with Contract
@@ -165,7 +165,7 @@ class Cotract(db.Model):
     contract_date = db.Column(db.DateTime, default = datetime.now, nullable = False)
     service_id = db.Column(db.Integer, db.ForeignKey('service_req.id'))
 
-    service = db.relationship('Service_req', back_populates='contact', lazy = True) #1 to 1 with service_req
+    service = db.relationship('Service_req', back_populates='contract', lazy = True) #1 to 1 with service_req
 
     
     def __repr__(self):
