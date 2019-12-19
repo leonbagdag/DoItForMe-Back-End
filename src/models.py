@@ -15,7 +15,7 @@ class User(db.Model):
     username = db.Column(db.String(80), unique = True, nullable = False)
     email = db.Column(db.String(120), unique = True, nullable = False)
     password = db.Column(db.String(30), nullable = False)
-    register_date = db.Column(db.DateTime, default = datetime.now)
+    register_date = db.Column(db.DateTime, default = datetime.now, nullable = False)
 
     profile = db.relationship('Userprofile', back_populates='user', uselist = False, lazy = True) # 1 to 1 with profile
     reviews = db.relationship('Review', back_populates='user', lazy = True) # 1 to many with reviews
@@ -85,7 +85,7 @@ class Review(db.Model): #Relación 1 a muchos con User
     id = db.Column(db.Integer, primary_key = True)
     review_body = db.Column(db.Text)
     score = db.Column(db.Float, nullable = False)
-    service_id = db.Column(db.Integer, nullable = False) #service involving provider and employer
+    contract_id = db.Column(db.Integer, nullable = False) #contract involving provider and employer
     from_user = db.Column(db.Integer, nullable = False) #user that make the review, from front-end
     user_as = db.Column(db.String(10), nullable = False) #role of user being qualified, from front-end = provider or employer
     user_id = db.Column(db.Integer, db.ForeignKey('user.id')) #owner of the review
@@ -99,7 +99,7 @@ class Review(db.Model): #Relación 1 a muchos con User
         return {
             "review": self.review_body,
             "score": self.score,
-            "Service": self.service_id,
+            "Service": self.contract_id,
             "from": self.from_user,
             "user_as": self.user_as
         }
@@ -130,6 +130,9 @@ class Service_req(db.Model):
     service_name = db.Column(db.String(60), nullable = False)
     description = db.Column(db.Text, nullable = False)
     provider_id = db.Column(db.Integer, default = 0, nullable = False) # user winner of the contract, from front-end. If 0 is an open service req
+    request_date = db.Column(db.DateTime, default = datetime.now, nullable = False)
+    request_status = db.Column(db.String(10), default = 'active', nullable = False) #status options: open, paused, closed
+    urgency = db.Column(db.String(10), nullable = False), #urgencies: low, medium, high
 
     def __repr__(self):
         return '<Service %r>' % self.id
@@ -137,6 +140,25 @@ class Service_req(db.Model):
     def serialize(self):
         return {
             'service_id': self.id,
+            'name': self.service_name,
             'description': self.description,
             'provider': self.provider_id,
+            'date': self.request_date,
+            'status': self.request_status,
+            'urgency': self.urgency
+        }
+
+class Cotract(db.Model):
+    id = db.column(db.Integer, primary_key = True)
+    contract_status = db.Column(db.String(10), default = 'active', nullable = False) # status options: active, paused, cancelled
+    contract_date = db.Column(db.DateTime, default = datetime.now, nullable = False)
+    
+    def __repr__(self):
+        return '<Contact %r>' %self.id
+
+    def serialize(self):
+        return {
+            'id': self.id,
+            'status': self.contract_status,
+            'date': self.contract_date
         }
