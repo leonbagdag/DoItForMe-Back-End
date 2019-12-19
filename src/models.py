@@ -142,7 +142,7 @@ class Service(db.Model):
     user = db.relationship('User', back_populates='services', lazy = True)
     category = db.relationship('Category', back_populates='services', lazy = True) # 1 to many with category
     offers = db.relationship('Offer', back_populates='service', lazy = True) # 1 to many with offer
-    contract = db.relationship('Contract', back_populates='service', uselist=False, lazy = True) #1 to 1 with Contract
+    contract_data = db.relationship('Contract', back_populates='service', uselist=False, lazy = True) #1 to 1 with Contract
 
     def __repr__(self):
         return '<Service %r>' % self.service_name
@@ -159,17 +159,17 @@ class Service(db.Model):
             'category': self.category_id
         }
 
-class Cotract(db.Model):
+class Contract(db.Model):
     id = db.Column(db.Integer, primary_key = True)
     contract_status = db.Column(db.String(10), default = 'active', nullable = False) # status options: active, paused, cancelled
     contract_date = db.Column(db.DateTime, default = datetime.now, nullable = False)
     service_id = db.Column(db.Integer, db.ForeignKey('service.id'))
 
-    service = db.relationship('Service', back_populates='contract', lazy = True) #1 to 1 with service
+    service = db.relationship('Service', back_populates='contract_data', lazy = True) #1 to 1 with service
 
     
     def __repr__(self):
-        return '<Contact %r>' % self.id
+        return '<Contract %r>' % self.id
 
     def serialize(self):
         return {
