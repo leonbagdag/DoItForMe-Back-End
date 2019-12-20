@@ -7,7 +7,7 @@ from flask_migrate import Migrate
 from flask_swagger import swagger
 from flask_cors import CORS
 from utils import APIException, generate_sitemap
-from models import db
+from models import db, User
 #from models import Person
 
 app = Flask(__name__)
@@ -36,6 +36,41 @@ def handle_hello():
     }
 
     return jsonify(response_body), 200
+
+@app.route('/registro', methods=['POST'])
+def create_user():
+    '''
+    Create an user given the username, password and email. username can be = email without hostname
+    '''
+
+    body = request.get_json()
+
+    if body is None: #400 means bad request
+        raise APIException("You need to specify the request body as a json object", status_code=400)
+    if 'email' not in body:
+        raise APIException('You need to specify the email', status_code=400)
+    if 'username' not in body:
+        raise APIException('You need to specify the username', status_code=400)
+    if 'password' not in body:
+        raise APIException('You need to specify the password', status_code=400)
+
+    new_user = User(email = body['email'], username = body['username'], password = body['password'])
+    db.session.add(new_user)
+    db.session.commit()
+
+    return jsonify(new_user.serialize()), 201 #201 = Created
+
+@app.route('/user/<int:user_id>', methods=['GET', 'PUT'])
+def get_user(user_id):
+    '''
+    Get Data from 1 user.
+    '''
+    if request.method == 'GET':
+        user_query = User.query.filter(User.id == user_id).first()
+        print(User.query.get(user_id))
+        return jsonify(user_query.serialize()), 200
+
+    return "Invalid method", 400
 
 # this only runs if `$ python src/main.py` is executed
 if __name__ == '__main__':

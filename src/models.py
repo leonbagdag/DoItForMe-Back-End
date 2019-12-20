@@ -12,8 +12,8 @@ user_category = db.Table('user_category', db.metadata,
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     role = db.Column(db.String(10), default='client', nullable=False) # Role is client or admin
-    username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
+    username = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(30), nullable=False)
     register_date = db.Column(db.DateTime, default=datetime.now, nullable=False)
 
@@ -29,10 +29,15 @@ class User(db.Model):
     
     def serialize(self):
         return {
-            "id": self.id,
+            "user_id": self.id,
             "username": self.username,
             "email": self.email,
-            "since": self.register_date
+            "since": self.register_date.year,
+            "reviews": list(map(lambda x: x.serialize(), self.reviews)),
+            "categories": list(map(lambda x: x.serialize(), self.categories)),
+            "offers": list(map(lambda x: x.serialize(), self.offers)),
+            "services": list(map(lambda x: x.serialize_URL(), self.services)),
+            "contracts": list(map(lambda x: x.serialize_URL(), self.contracts))
         }
 
 class Category(db.Model):
