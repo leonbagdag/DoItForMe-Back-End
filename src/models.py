@@ -22,6 +22,7 @@ class User(db.Model):
     categories = db.relationship('Category', secondary=user_category, back_populates='users', lazy=True) #many to many with categories
     offers = db.relationship('Offer', back_populates='user', lazy=True) # 1 to many with offers
     services = db.relationship('Service', back_populates='user', lazy = True) # 1 to many with service
+    contracts = db.relationship('Contract', back_populates='user', lazy = True) # 1 to many with contract
 
     def __repr__(self):
         return '<User %r>' % self.username
@@ -36,11 +37,11 @@ class User(db.Model):
 
 class Category(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(20), unique = True, nullable = False)
-    logo = db.Column(db.String(60), unique = True, nullable = False) #From Font-awsome
+    name = db.Column(db.String(20), unique=True, nullable=False)
+    logo = db.Column(db.String(60), unique=True, nullable=False) #From Font-awsome
 
-    users = db.relationship('User', secondary=user_category, back_populates='categories', lazy = True) #many to many with users
-    services = db.relationship('Service', back_populates='category', lazy = True) #1 to many with service
+    users = db.relationship('User', secondary=user_category, back_populates='categories', lazy=True) #many to many with users
+    services = db.relationship('Service', back_populates='category', lazy=True) #1 to many with service
 
     def __repr__(self):
         return '<Category %r>' % self.name
@@ -62,11 +63,11 @@ class Profile(db.Model): # 1 to 1 rel with User
     address_2 = db.Column(db.String(120))
     rut = db.Column(db.String(10))
     rut_serial = db.Column(db.String(20))
-    score_as_provider = db.Column(db.Float, default = 0)
-    score_as_employer = db.Column(db.Float, default = 0)
+    score_as_provider = db.Column(db.Float, default=0)
+    score_as_employer = db.Column(db.Float, default=0)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
-    user = db.relationship('User', back_populates='profile', lazy = True) # 1 to 1 with user
+    user = db.relationship('User', back_populates='profile', lazy=True) # 1 to 1 with user
 
     def __repr__(self):
         return '<Profile %r>' % self.fname
@@ -84,18 +85,16 @@ class Profile(db.Model): # 1 to 1 rel with User
         }
 
 class Review(db.Model): #1 to many rel with User
-    id = db.Column(db.Integer, primary_key = True)
+    id = db.Column(db.Integer, primary_key=True)
     review_body = db.Column(db.Text)
-    score = db.Column(db.Float, nullable = False)
-    contract_id = db.Column(db.Integer, nullable = False) #contract involving provider and employer
-    from_user = db.Column(db.Integer, nullable = False) #user that make the review, from front-end
-    user_as = db.Column(db.String(10), nullable = False) #role of user being qualified, from front-end = provider or employer
+    score = db.Column(db.Float, nullable=False)
+    contract_id = db.Column(db.Integer, nullable=False) #contract involving provider and employer
+    from_user = db.Column(db.Integer, nullable=False) #user that make the review, from front-end
+    user_as = db.Column(db.String(10), nullable=False) #role of user being qualified, from front-end = provider or employer
     user_id = db.Column(db.Integer, db.ForeignKey('user.id')) #owner of the review
 
-    user = db.relationship('User', back_populates = 'reviews', lazy = True) # one to many with user
+    user = db.relationship('User', back_populates='reviews', lazy=True) # one to many with user
 
-    def __repr__(self):
-        return '<Review %r>' % self.id
 
     def serialize(self):
         return {
@@ -109,13 +108,13 @@ class Review(db.Model): #1 to many rel with User
 class Offer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     offer_body = db.Column(db.Text)
-    offer_status = db.Column(db.String(10), default = 'active', nullable = False)
-    offer_date = db.Column(db.DateTime, default = datetime.now)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id')) # user offering a service
+    offer_status = db.Column(db.String(10), default='active', nullable=False)
+    offer_date = db.Column(db.DateTime, default=datetime.now)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id')) #provider that owns the offer
     service_id = db.Column(db.Integer, db.ForeignKey('service.id'))
 
-    user = db.relationship('User', back_populates = 'offers', lazy = True) # 1 to many with user
-    service = db.relationship('Service', back_populates = 'offers', lazy = True) #1 to many with service
+    user = db.relationship('User', back_populates='offers', lazy=True) # 1 to many with user
+    service = db.relationship('Service', back_populates='offers', lazy=True) #1 to many with service
 
     def __repr__(self):
         return '<Offer %r>' % self.id
@@ -131,18 +130,18 @@ class Offer(db.Model):
 
 class Service(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    service_name = db.Column(db.String(60), nullable = False)
-    description = db.Column(db.Text, nullable = False)
-    provider_id = db.Column(db.Integer, default = 0, nullable = False) # user winner of the contract, from front-end. If 0 is an open service req
-    request_date = db.Column(db.DateTime, default = datetime.now, nullable = False)
-    request_status = db.Column(db.String(10), default = 'active', nullable = False) #status options: open, paused, closed
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    service_name = db.Column(db.String(60), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    provider_id = db.Column(db.Integer, default=0, nullable=False) # user winner of the contract, from front-end. If 0 is an open service req
+    request_date = db.Column(db.DateTime, default = datetime.now, nullable=False)
+    request_status = db.Column(db.String(10), default = 'active', nullable=False) #status options: open, paused, closed
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id')) #Employer that owns de service_request
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'))
     
-    user = db.relationship('User', back_populates='services', lazy = True)
-    category = db.relationship('Category', back_populates='services', lazy = True) # 1 to many with category
-    offers = db.relationship('Offer', back_populates='service', lazy = True) # 1 to many with offer
-    contract_data = db.relationship('Contract', back_populates='service', uselist=False, lazy = True) #1 to 1 with Contract
+    user = db.relationship('User', back_populates='services', lazy=True)
+    category = db.relationship('Category', back_populates='services', lazy=True) # 1 to many with category
+    offers = db.relationship('Offer', back_populates='service', lazy=True) # 1 to many with offer
+    contract_data = db.relationship('Contract', back_populates='service', uselist=False, lazy=True) #1 to 1 with Contract
 
     def __repr__(self):
         return '<Service %r>' % self.service_name
@@ -160,13 +159,14 @@ class Service(db.Model):
         }
 
 class Contract(db.Model):
-    id = db.Column(db.Integer, primary_key = True)
-    contract_status = db.Column(db.String(10), default = 'active', nullable = False) # status options: active, paused, cancelled
-    contract_date = db.Column(db.DateTime, default = datetime.now, nullable = False)
+    id = db.Column(db.Integer, primary_key=True)
+    contract_status = db.Column(db.String(10), default = 'active', nullable=False) # status options: active, paused, cancelled
+    contract_date = db.Column(db.DateTime, default = datetime.now, nullable=False)
     service_id = db.Column(db.Integer, db.ForeignKey('service.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id')) # Provider that won the offer and owns the contract
 
-    service = db.relationship('Service', back_populates='contract_data', lazy = True) #1 to 1 with service
-
+    service = db.relationship('Service', back_populates='contract_data', lazy=True) #1 to 1 with service
+    user = db.relationship('User', back_populates = 'contracts', lazy = True)
     
     def __repr__(self):
         return '<Contract %r>' % self.id
