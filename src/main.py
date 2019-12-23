@@ -7,7 +7,7 @@ from flask_migrate import Migrate
 from flask_swagger import swagger
 from flask_cors import CORS
 from utils import APIException, generate_sitemap
-from models import db, User
+from models import db, User, Profile, Employer, Provider
 #from models import Person
 
 app = Flask(__name__)
@@ -57,6 +57,13 @@ def create_user():
     new_user = User(email = body['email'], username = body['username'], password = body['password'])
     db.session.add(new_user)
     db.session.commit()
+    new_provider = Provider(user=new_user)
+    new_employer = Employer(user=new_user)
+    new_profile = Profile(user=new_user)
+    db.session.add(new_provider)
+    db.session.add(new_employer)
+    db.session.add(new_profile)
+    db.session.commit()
 
     return jsonify(new_user.serialize()), 201 #201 = Created
 
@@ -66,8 +73,8 @@ def get_user(user_id):
     Get Data from 1 user.
     '''
     if request.method == 'GET':
-        user_query = User.query.filter(User.id == user_id).first()
-        print(User.query.get(user_id))
+        user_query = User.query.get(user_id)
+        print(User.query.get_or_404(user_id))
         return jsonify(user_query.serialize()), 200
 
     return "Invalid method", 400
