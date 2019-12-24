@@ -35,6 +35,14 @@ class User(db.Model):
             "employer": self.employer.serialize(),
         }
 
+    def serialize_public(self):
+        return {
+            "user_id": self.id,
+            "username": self.username,
+            "since": self.since,
+            "profile": self.profile.serialize_public(),
+        }
+
 class Employer(db.Model):
     __tablename__ = 'employer'
     id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
@@ -43,6 +51,7 @@ class Employer(db.Model):
     user = db.relationship('User', back_populates='employer', lazy=True)
     contracts = db.relationship('Contract', back_populates='employer', lazy=True)
     requests = db.relationship('Request', back_populates='employer', lazy=True)
+    reviews = db.relationship('Review', back_populates='employer', lazy=True)
 
     def __repr__(self):
         return '<Employer %r>' % self.id
@@ -53,6 +62,7 @@ class Employer(db.Model):
             'score': self.score,
             'contracts': list(map(lambda x: x.serialize(), self.contracts)),
             'requests': list(map(lambda x: x.serialize(), self.requests)),
+            'reviews': list(map(lambda x: x.serialize(), self.reviews)),
         }
 
 class Provider(db.Model):
@@ -65,6 +75,7 @@ class Provider(db.Model):
     contracts = db.relationship('Contract', back_populates='provider', lazy=True)
     offers = db.relationship('Offer', back_populates='provider', lazy=True)
     requests = db.relationship('Request', back_populates='provider', lazy=True)
+    reviews = db.relationship('Review', back_populates='provider', lazy=True)
 
     def __repr__(self):
         return '<Provider %r>' % self.id
@@ -77,6 +88,7 @@ class Provider(db.Model):
             'contracts': list(map(lambda x: x.serialize(), self.contracts)),
             'offers': list(map(lambda x: x.serialize(), self.offers)),
             'requests': list(map(lambda x: x.serialize(), self.requests)),
+            'reviews': list(map(lambda x: x.serialize(), self.reviews)),
         }
 
 class Contract(db.Model):
@@ -147,8 +159,16 @@ class Profile(db.Model): # 1 to 1 rel with User
             "lastName": self.lname,
             "region": self.region,
             "comuna": self.comuna,
-            "calle": self.str_name,
-            "numero": self.home_number,
+            "street": self.str_name,
+            "number": self.home_number,
+        }
+    
+    def serialize_public(self):
+        return {
+            "first_name": self.fname,
+            "last_name": self.lname,
+            "region": self.region,
+            "comuna": self.comuna,
         }
 
 class Request(db.Model):
@@ -164,13 +184,14 @@ class Request(db.Model):
     creation_date = db.Column(db.DateTime, default=datetime.now)
     service_status = db.Column(db.String(20), default='active') #options are: active, paused, closed
     employer_id = db.Column(db.Integer, db.ForeignKey('employer.id'))
-    provider_id = db.Column(db.Integer, db.ForeignKey('provider.id'), default=0)
+    provider_id = db.Column(db.Integer, db.ForeignKey('provider.id'), default=0) # si es una solicitud directa, se debe especificar quien es el proveedor
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'))
 
     employer = db.relationship('Employer', back_populates='requests', lazy=True)
     category = db.relationship('Category', back_populates='requests', lazy=True)
     provider = db.relationship('Provider', back_populates='requests', lazy=True)
     offers = db.relationship('Offer', back_populates='request', lazy=True)
+    reviews = db.relationship('Review', back_populates='request', lazy=True)
 
     def __repr__(self):
         return '<Request %r>' % self.id
@@ -190,7 +211,7 @@ class Request(db.Model):
             'employer': self.employer_id,
             'category': self.category_id,
             'provider': self.provider,
-            'offers': list(map(lambda x: x.serialize(), self.offers))
+            'offers': list(map(lambda x: x.serialize(), self.offers)),
         }
 
 class Offer(db.Model):
@@ -213,4 +234,30 @@ class Offer(db.Model):
             'date': self.offer_date,
             'description': self.description,
             'provider': self.provider_id,
+        }
+
+class Review(db.Model):
+    __tablename__ = 'review'
+    id = db.Column(db.Integer, primary_key=True)
+    score = db.Column(db.Integer, nullable=False) # score del 1 al 5
+    body = db.Column(db.Text)
+    request_id = db.Column(db.Integer, db.ForeignKey('request.id'))
+    provider_id = db.Column(db.Integer, db.ForeignKey('provider.id'))
+    employer_id = db.Column(db.Integer, db.ForeignKey('employer.id'))
+
+    request = db.relationship('Request', back_populates='reviews', lazy=True)
+    provider = db.relationship('Provider', back_populates='reviews', lazy=True)
+    employer = db.relationship('Employer', back_populates='reviews', lazy=True)
+
+    def __repr__(self):
+        return '<Review %r>' % self.id
+
+    def serialize(self):
+        return {
+            'id': self.id,
+            'score': self.score,
+            'body': self.body,
+            'request_id': self.request_id,
+            'provider': self.provider.user.serialize_public(),
+            'employer': self.employer.user.serialize_public(),
         }
