@@ -7,7 +7,7 @@ from flask_migrate import Migrate
 from flask_swagger import swagger
 from flask_cors import CORS
 from utils import APIException, generate_sitemap
-from models import db, User, Profile, Employer, Provider
+from models import db, User, Employer, Provider
 #from models import Person
 
 app = Flask(__name__)
@@ -59,10 +59,8 @@ def create_user():
     db.session.commit()
     new_provider = Provider(user=new_user)
     new_employer = Employer(user=new_user)
-    new_profile = Profile(user=new_user)
     db.session.add(new_provider)
     db.session.add(new_employer)
-    db.session.add(new_profile)
     db.session.commit()
 
     return jsonify(new_user.serialize()), 201 #201 = Created
