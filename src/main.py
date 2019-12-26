@@ -65,16 +65,27 @@ def create_user():
 
     return jsonify(new_user.serialize()), 201 #201 = Created
 
-@app.route('/user/<int:user_id>', methods=['GET', 'PUT'])
+@app.route('/user/<int:user_id>', methods=['GET', 'PUT', 'DELETE'])
 def get_user(user_id):
     '''
     Get Data from 1 user.
     '''
-    if request.method == 'GET':
-        user_query = User.query.get(user_id)
-        print(User.query.get_or_404(user_id))
-        return jsonify(user_query.serialize()), 200
+    user_query = User.query.get_or_404(user_id)
 
+    if request.method == 'GET':
+        return jsonify(dict({
+            **user_query.serialize(),
+            **user_query.serialize_provider(),
+            **user_query.serialize_employer(),
+        })), 200
+    elif request.method == 'DELETE':
+        employer_query = Employer.query.get_or_404(user_id)
+        provider_query = Provider.query.get_or_404(user_id)
+        db.session.delete(employer_query)
+        db.session.delete(provider_query)
+        db.session.delete(user_query)
+        db.session.commit()
+        return jsonify({"deleted": user_id}), 200
     return "Invalid method", 400
 
 # this only runs if `$ python src/main.py` is executed

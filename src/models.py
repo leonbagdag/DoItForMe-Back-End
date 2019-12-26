@@ -19,7 +19,8 @@ class User(db.Model):
     profile_img = db.Column(db.String(60))
     fname = db.Column(db.String(20))
     lname = db.Column(db.String(20))
-    str_name = db.Column(db.String(20))
+    street = db.Column(db.String(20))
+    street_number = db.Column(db.String(20))
     home_number = db.Column(db.String(20))
     region = db.Column(db.String(20))
     comuna = db.Column(db.String(20))
@@ -41,10 +42,13 @@ class User(db.Model):
             'profile_img': self.profile_img,
             'first_name': self.fname,
             'last_name': self.lname,
-            'street': self.str_name,
-            'home_number': self.home_number,
-            'region': self.region,
-            'comuna': self.comuna,
+            'address': dict({
+                'street': self.street,
+                'number': self.street_number,
+                'home_num': self.home_number,
+                'comuna': self.comuna,
+                'region': self.region,
+            })
         }
 
     def serialize_private(self):
