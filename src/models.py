@@ -82,7 +82,7 @@ class Employer(db.Model):
         }
 
     def serialize_info(self):
-        return self.user.serialize()
+        return dict({'score': self.score}, **self.user.serialize())
 
 class Provider(db.Model):
     __tablename__ = 'provider'
@@ -108,9 +108,9 @@ class Provider(db.Model):
             'requests': list(map(lambda x: x.serialize(), self.requests)),
             'reviews': list(map(lambda x: x.serialize(), self.reviews)),
         }
-    
+
     def serialize_info(self):
-        return self.user.serialize()
+        return dict({'score': self.score}, **self.user.serialize())
 
 class Contract(db.Model):
     __tablename__ = 'contract'
@@ -160,12 +160,6 @@ class Category(db.Model):
             'logo': self.logo,
         }
 
-    def serialize_requests(self):
-        return {'requests': list(map(lambda x: x.serialize(), self,requests))}
-
-    def serialize_providers(self):
-        return {'providers': list(map(lambda x: x.serialize(), self.providers))}
-
 class Request(db.Model):
     __tablename__ = 'request'
     id = db.Column(db.Integer, primary_key=True)
@@ -178,6 +172,7 @@ class Request(db.Model):
     region = db.Column(db.String(20), nullable=False)
     creation_date = db.Column(db.DateTime, default=datetime.now)
     service_status = db.Column(db.String(20), default='active') #options are: active, paused, closed
+    request_type = db.Column(db.String(20)) #Types are open request or direct request
     employer_id = db.Column(db.Integer, db.ForeignKey('employer.id'))
     provider_id = db.Column(db.Integer, db.ForeignKey('provider.id'), default=0) # si es una solicitud directa, se debe especificar quien es el proveedor
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'))
@@ -190,23 +185,23 @@ class Request(db.Model):
     def __repr__(self):
         return '<Request %r>' % self.id
 
-    # def serialize(self):
-    #     return {
-    #         'id': self.id,
-    #         'name': self.name,
-    #         'description': self.description,
-    #         'street': self.str_name,
-    #         'number': self.home_number,
-    #         'more_info': self.more_info,
-    #         'comuna': self.comuna,
-    #         'region': self.region,
-    #         'date_created': self.creation_date,
-    #         'status': self.service_status,
-    #         'employer': self.employer_id,
-    #         'category': self.category_id,
-    #         'provider': self.provider,
-    #     }
-
+    def serialize(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'request_type': self.request_type,
+            'description': self.description,
+            'street': self.str_name,
+            'number': self.home_number,
+            'more_info': self.more_info,
+            'comuna': self.comuna,
+            'region': self.region,
+            'date_created': self.creation_date,
+            'status': self.service_status,
+            'category': self.category.serialize(),
+            'provider': self.provider_id,
+            'employer': self.employer.serialize_info(),
+        }
 
 class Offer(db.Model):
     __tablename__ = 'offer'
@@ -222,13 +217,16 @@ class Offer(db.Model):
     def __repr__(self):
         return '<Offer %r>' % self.id
 
-    # def serialize(self):
-    #     return {
-    #         'id': self.id,
-    #         'date': self.offer_date,
-    #         'description': self.description,
-    #         'provider': self.provider.serialize(),
-    #     }
+    def serialize(self):
+        return {
+            'id': self.id,
+            'date': self.offer_date,
+            'description': self.description,
+            'provider': self.provider.serialize_info(),
+        }
+
+    def serialize_request(self):
+        return {'request_info': self.request.serialize()}
 
 class Review(db.Model):
     __tablename__ = 'review'
