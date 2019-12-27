@@ -39,6 +39,9 @@ def handle_hello():
 
 @app.route('/categories', methods=['GET', 'POST'])
 def handle_categories():
+    '''
+    Get all categories stored in database and add new categories with post req.
+    '''
     if request.method == 'GET':
         all_categories = Category.query.all()
         response_body = {'categories': list(map(lambda x: x.serialize(), all_categories))}
@@ -56,6 +59,9 @@ def handle_categories():
 
 @app.route('/categories/<int:category_id>', methods=['PUT', 'DELETE'])
 def edit_category(category_id):
+    '''
+    edit existing category in db. PUT to edit and DELETE for Delete
+    '''
     if request.method == 'PUT':
         request_body = request.get_json()
         modify_category = Category.query.get_or_404(category_id)
@@ -126,6 +132,30 @@ def get_user(user_id):
         db.session.commit()
         return jsonify({"deleted": user_id}), 200
     return "Invalid method", 400
+
+@app.route('/provider/<int:provider_id>/categories', methods=['PUT'])
+def update_provider_categories(provider_id):
+    '''
+    configure the categories of each user
+    '''
+    request_body = request.get_json()
+    provider_q = Provider.query.get_or_404(provider_id)
+    # se agregan categorias entrantes
+    for c in request_body['categories']:
+        new_cat = Category.query.get_or_404(c['id'])
+        provider_q.categories.append(new_cat)
+    db.session.commit()
+    # se eliminan categorias previas que no estan en el request_body
+    for d in provider_q.categories:
+        exist = False
+        for e in request_body['categories']:
+            if d.id == e['id']:
+                exist = True
+        if not exist:
+            provider_q.categories.remove(d)
+    db.session.commit()
+
+    return jsonify({'message': 'updated provider {}'.format(provider_id)}), 200
 
 @app.route('/service_request', methods=['POST'])
 def create_request():
