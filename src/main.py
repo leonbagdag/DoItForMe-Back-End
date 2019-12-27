@@ -75,8 +75,8 @@ def get_user(user_id):
     if request.method == 'GET':
         return jsonify(dict({
             **user_query.serialize(),
-            **user_query.serialize_provider(),
-            **user_query.serialize_employer(),
+            **user_query.serialize_provider_activity(),
+            **user_query.serialize_employer_activity(),
         })), 200
     elif request.method == 'DELETE':
         employer_query = Employer.query.get_or_404(user_id)

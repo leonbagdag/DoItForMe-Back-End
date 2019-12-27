@@ -51,17 +51,17 @@ class User(db.Model):
             })
         }
 
-    def serialize_private(self):
+    def serialize_private_info(self):
         return {
             'email': self.email,
             'rut': self.rut,
             'serial': self.rut_serial,
         }
 
-    def serialize_provider(self):
+    def serialize_provider_activity(self):
         return {'provider': self.provider.serialize()}
 
-    def serialize_employer(self):
+    def serialize_employer_activity(self):
         return {'employer': self.employer.serialize()}
 
 class Employer(db.Model):
@@ -85,7 +85,7 @@ class Employer(db.Model):
             'reviews': list(map(lambda x: x.serialize(), self.reviews)),
         }
 
-    def serialize_info(self):
+    def serialize_public_info(self):
         return dict({'score': self.score}, **self.user.serialize())
 
 class Provider(db.Model):
@@ -113,7 +113,7 @@ class Provider(db.Model):
             'reviews': list(map(lambda x: x.serialize(), self.reviews)),
         }
 
-    def serialize_info(self):
+    def serialize_public_info(self):
         return dict({'score': self.score}, **self.user.serialize())
 
 class Contract(db.Model):
@@ -140,10 +140,10 @@ class Contract(db.Model):
         }
     
     def serialize_provider(self):
-        return {'provider:': self.provider.user.serialize()}
+        return {'provider:': self.provider.serialize_public_info()}
 
     def serialize_employer(self):
-        return {'employer': self.employer.user.serialize()}
+        return {'employer': self.employer.serialize_public_info()}
 
 class Category(db.Model):
     __tablename__ = 'category'
@@ -203,9 +203,16 @@ class Request(db.Model):
             'date_created': self.creation_date,
             'status': self.service_status,
             'category': self.category.serialize(),
-            'provider': self.provider_id,
-            'employer': self.employer.serialize_info(),
         }
+
+    def serialize_offers(self):
+        return {'offers': list(map(lambda x: x.serialize(), self.offers))}
+
+    def serialize_employer(self):
+        return {'employer': self.employer.serialize_public_info()}
+
+    def serialize_provider(self):
+        return {'provider': self.provider.serialize_public_info()} #provider who win the request
 
 class Offer(db.Model):
     __tablename__ = 'offer'
@@ -226,11 +233,13 @@ class Offer(db.Model):
             'id': self.id,
             'date': self.offer_date,
             'description': self.description,
-            'provider': self.provider.serialize_info(),
         }
 
     def serialize_request(self):
         return {'request_info': self.request.serialize()}
+
+    def serlialize_provider(self):
+        return {'provider': self.provider.serialize_public_info()}
 
 class Review(db.Model):
     __tablename__ = 'review'
@@ -257,3 +266,9 @@ class Review(db.Model):
             'date': self.review_date,
             'review_author': self.user.serialize(),
         }
+    
+    def serialize_employer(self): #employer who owns the review
+        return {'employer': self.employer.serialize_public_info()}
+
+    def serialize_provider(self): #provider who owns the review
+        return {'provider': self.provider.serialize_public_info()}
