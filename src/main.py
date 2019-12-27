@@ -141,11 +141,11 @@ def update_provider_categories(provider_id):
     request_body = request.get_json()
     provider_q = Provider.query.get_or_404(provider_id)
     # se agregan categorias entrantes
-    for c in request_body['categories']:
+    for c in request_body['categories']: # recibe una lista con el id de cada cat, dentro del valor "categories"
         new_cat = Category.query.get_or_404(c['id'])
         provider_q.categories.append(new_cat)
     db.session.commit()
-    # se eliminan categorias previas que no estan en el request_body
+    # se eliminan categorias previas que no estan en las categorias entrantes
     for d in provider_q.categories:
         exist = False
         for e in request_body['categories']:
@@ -153,7 +153,8 @@ def update_provider_categories(provider_id):
                 exist = True
         if not exist:
             provider_q.categories.remove(d)
-    db.session.commit()
+            db.session.commit()
+            exist = False
 
     return jsonify({'message': 'updated provider {}'.format(provider_id)}), 200
 
