@@ -20,8 +20,8 @@ class User(db.Model):
     fname = db.Column(db.String(20))
     lname = db.Column(db.String(20))
     street = db.Column(db.String(20))
-    street_number = db.Column(db.String(20))
     home_number = db.Column(db.String(20))
+    more_info = db.Column(db.String(60))
     region = db.Column(db.String(20))
     comuna = db.Column(db.String(20))
     rut = db.Column(db.String(10))
@@ -44,8 +44,8 @@ class User(db.Model):
             'last_name': self.lname,
             'address': dict({
                 'street': self.street,
-                'number': self.street_number,
-                'home_num': self.home_number,
+                'home_number': self.home_number,
+                'more_info': self.more_info,
                 'comuna': self.comuna,
                 'region': self.region,
             })
@@ -169,7 +169,7 @@ class Request(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(20), nullable=False)
     description = db.Column(db.String(20), nullable=False)
-    str_name = db.Column(db.String(20), nullable=False)
+    street = db.Column(db.String(20), nullable=False)
     home_number = db.Column(db.String(20), nullable=False)
     more_info = db.Column(db.String(20))
     comuna = db.Column(db.String(20), nullable=False)
@@ -195,14 +195,17 @@ class Request(db.Model):
             'name': self.name,
             'request_type': self.request_type,
             'description': self.description,
-            'street': self.str_name,
-            'number': self.home_number,
-            'more_info': self.more_info,
-            'comuna': self.comuna,
-            'region': self.region,
             'date_created': self.creation_date,
             'status': self.service_status,
             'category': self.category.serialize(),
+            'address': dict({
+                'street': self.street,
+                'home_number': self.home_number,
+                'more_info': self.more_info,
+                'comuna': self.comuna,
+                'region': self.region,
+
+            }),
         }
 
     def serialize_offers(self):

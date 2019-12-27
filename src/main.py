@@ -88,6 +88,25 @@ def get_user(user_id):
         return jsonify({"deleted": user_id}), 200
     return "Invalid method", 400
 
+@app.route('/service_request', methods=['POST'])
+def create_request():
+    '''
+    create service request from provider. API expects:
+        - name: name of the request
+        - description: text with the description of the request
+        - street: name of the street where the request is made
+        - home_number: number of the home in the street
+        - more_info: optional adicional info about the addres
+        - comuna: comuna of the service required
+        - region: region of the service required
+        - request_type: the type of the service request, can be open or direct
+        - employer_id: id of the employer requiring the service. from Front-end
+        - category_id: id of the category that require the service. from Front-end
+        - provider_id: optional, required only if is a direct request. from Front-end
+    '''
+
+
+
 # this only runs if `$ python src/main.py` is executed
 if __name__ == '__main__':
     PORT = int(os.environ.get('PORT', 3000))
