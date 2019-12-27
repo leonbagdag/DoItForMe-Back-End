@@ -7,7 +7,7 @@ from flask_migrate import Migrate
 from flask_swagger import swagger
 from flask_cors import CORS
 from utils import APIException, generate_sitemap
-from models import db, User, Employer, Provider
+from models import db, User, Employer, Provider, Category
 #from models import Person
 
 app = Flask(__name__)
@@ -36,6 +36,45 @@ def handle_hello():
     }
 
     return jsonify(response_body), 200
+
+@app.route('/categories', methods=['GET', 'POST'])
+def handle_categories():
+    if request.method == 'GET':
+        all_categories = Category.query.all()
+        response_body = {'categories': list(map(lambda x: x.serialize(), all_categories))}
+
+        return jsonify(response_body), 200
+
+    if request.method == 'POST':
+        request_body = request.get_json()
+        new_category = Category(name=request_body['name'], logo=request_body['logo'])
+        db.session.add(new_category)
+        db.session.commit()
+        response_body = {'message': 'created category with id: {}'.format(new_category.id) }
+        
+        return jsonify(response_body), 201
+
+@app.route('/categories/<int:category_id>', methods=['PUT', 'DELETE'])
+def edit_category(category_id):
+    if request.method == 'PUT':
+        request_body = request.get_json()
+        modify_category = Category.query.get_or_404(category_id)
+        modify_category.name = request_body['name']
+        modify_category.logo = request_body['logo']
+        db.session.commit()
+        response_body = {'message': 'modified category: {}'.format(category_id)}
+
+        return jsonify(response_body), 200
+
+    if request.method == 'DELETE':
+        delete_category = Category.query.get_or_404(id)
+        db.session.delete(delete_category)
+        db.session.commit()
+        response_body = {'message': 'deleted category: {}'.format(id)}
+
+        return jsonify(response_body), 200
+
+    return {'message': 'invalid method'}, 400
 
 @app.route('/registro', methods=['POST'])
 def create_user():
@@ -104,6 +143,7 @@ def create_request():
         - category_id: id of the category that require the service. from Front-end
         - provider_id: optional, required only if is a direct request. from Front-end
     '''
+    request_body = request.get_json()
 
 
 

@@ -212,7 +212,7 @@ class Request(db.Model):
         return {'offers': list(map(lambda x: x.serialize(), self.offers))}
 
     def serialize_employer(self):
-        return {'employer': self.employer.serialize_public_info()}
+        return {'employer': self.employer.serialize_public_info()} #employer who made the request
 
     def serialize_provider(self):
         return {'provider': self.provider.serialize_public_info()} #provider who win the request
