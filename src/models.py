@@ -215,8 +215,7 @@ class Request(db.Model):
         return {'employer': self.employer.serialize_public_info()} #employer who made the request
 
     def serialize_provider(self):
-        return {'provider': self.provider.serialize_public_info()} #provider who win the request
-
+        return {'provider': self.provider.serialize_public_info()} #provider who won the request thru offer
 class Offer(db.Model):
     __tablename__ = 'offer'
     id = db.Column(db.Integer, primary_key=True)
@@ -254,7 +253,7 @@ class Review(db.Model):
     provider_id = db.Column(db.Integer, db.ForeignKey('provider.id')) #provider being evaluated
     employer_id = db.Column(db.Integer, db.ForeignKey('employer.id')) #employer being evaluated
 
-    user = db.relationship('User', back_populates='reviews_made', uselist=False, lazy=True) #review_author
+    user = db.relationship('User', back_populates='reviews_made', uselist=False, lazy=True)  #review_author
     employer = db.relationship('Employer', back_populates='reviews', uselist=False, lazy=True)
     provider = db.relationship('Provider', back_populates='reviews', uselist=False, lazy=True)
 

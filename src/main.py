@@ -133,6 +133,14 @@ def get_user(user_id):
         return jsonify({"deleted": user_id}), 200
     return "Invalid method", 400
 
+@app.route('/employer/<int:employer_id>', methods=['GET'])
+def get_employer(employer_id):
+
+    employer_q = Employer.query.get_or_404(employer_id)
+    if request.method == 'GET':
+        return jsonify({"employer": employer_q.serialize_public_info()}), 200
+    return "Invalid method", 400
+
 @app.route('/provider/<int:provider_id>/categories', methods=['PUT'])
 def update_provider_categories(provider_id):
     '''
