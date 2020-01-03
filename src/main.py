@@ -7,9 +7,8 @@ from flask_migrate import Migrate
 from flask_swagger import swagger
 from flask_cors import CORS
 from utils import APIException, generate_sitemap
-from models import db, User, Employer, Provider, Category
-
-# from models import Person
+from models import db, User, Employer, Provider, Category, Contract
+from sqlalchemy.exc import IntegrityError
 
 app = Flask(__name__)
 app.url_map.strict_slashes = False
@@ -41,51 +40,87 @@ def handle_hello():
     return jsonify(response_body), 200
 
 
-@app.route('/categories', methods=['GET', 'POST'])
-def handle_categories():
+@app.route('/admin/category/<int:id>', methods=['GET', 'PUT', 'DELETE'])
+def handle_categories(id=None):
     """
-    Get all categories stored in database and add new categories with post req.
+    Get or Edit categories stored in database. This is visible only for de Administrator
     """
-    if request.method == 'GET':
-        all_categories = Category.query.all()
-        response_body = {'categories': list(map(lambda x: x.serialize(), all_categories))}
+    if id is not None:
+        category_query = Category.query.get(id)
+        if not category_query:
+            raise APIException("Category {} not found".format(id), status_code=400)
 
-        return jsonify(response_body), 200
+        if request.method == 'GET': # get 1 category
+            return jsonify(category_query.serialize()), 200
 
-    if request.method == 'POST':
-        request_body = request.get_json()
-        new_category = Category(name=request_body['name'], logo=request_body['logo'])
+        if request.method == 'DELETE': # delete 1 category
+            db.session.delete(category_query)
+            db.session.commit()
+            response_body = {'message': 'deleted category: {}'.format(category_query.name)}
+            return jsonify(response_body), 200
+        
+        if request.method == 'PUT': # update category data
+            if not request.is_json:
+                raise APIException("Missing JSON in request", status_code=400)
+
+            name = request.json.get('name')
+            if not name:
+                raise APIException("Missing name parameter in request", status_code=400)
+
+            logo = request.json.get('logo')
+            if not logo:
+                raise APIException("Missing logo parameter in request", status_code=400)
+
+            try:
+                category_query.name = name
+                category_query.logo = logo
+                db.session.commit()
+                response_body = {'message': 'category with id: {} updated'.format(id)}
+                return jsonify(response_body), 200
+
+            except IntegrityError:
+                db.session.rollback()
+                raise APIException("Error, name or logo alredy exist", status_code=400)
+
+        raise APIException("Invalid Method", status_code=400)
+
+
+@app.route('/admin/category', methods = ['POST'])
+def create_category():
+    """
+    create new category
+    """
+    if not request.is_json:
+        raise APIException("Missing JSON in request", status_code=400)
+
+    name = request.json.get('name')
+    if not name:
+        raise APIException("Missing name parameter in request", status_code=400)
+
+    logo = request.json.get('logo')
+    if not logo:
+        raise APIException("Missing logo parameter in request", status_code=400)
+
+    try:
+        new_category = Category(name=name, logo=logo)
         db.session.add(new_category)
         db.session.commit()
         response_body = {'message': 'created category with id: {}'.format(new_category.id)}
-
         return jsonify(response_body), 201
+        
+    except IntegrityError:
+        db.session.rollback()
+        raise APIException("Error, name or logo alredy exist", status_code=400)
 
 
-@app.route('/categories/<int:category_id>', methods=['PUT', 'DELETE'])
-def edit_category(category_id):
+@app.route('/categories', methods = ['GET'])
+def get_all_categories():
     """
-    edit existing category in db. PUT to edit and DELETE for Delete
+    This is a public endpoint. Returns all categories stored in the database.
     """
-    if request.method == 'PUT':
-        request_body = request.get_json()
-        modify_category = Category.query.get_or_404(category_id)
-        modify_category.name = request_body['name']
-        modify_category.logo = request_body['logo']
-        db.session.commit()
-        response_body = {'message': 'modified category: {}'.format(category_id)}
-
-        return jsonify(response_body), 200
-
-    if request.method == 'DELETE':
-        delete_category = Category.query.get_or_404(id)
-        db.session.delete(delete_category)
-        db.session.commit()
-        response_body = {'message': 'deleted category: {}'.format(id)}
-
-        return jsonify(response_body), 200
-
-    return {'message': 'invalid method'}, 400
+    all_categories = Category.query.all()
+    response_body = {'categories': list(map(lambda x: x.serialize(), all_categories))}
+    return jsonify(response_body), 200
 
 
 @app.route('/registro', methods=['POST'])
