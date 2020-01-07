@@ -47,7 +47,7 @@ def handle_categories(id=None):
     """
     if id is not None:
         category_query = Category.query.get(id)
-        if not category_query:
+        if category_query is None:
             raise APIException("Category {} not found".format(id), status_code=400)
 
         if request.method == 'GET': # get 1 category
@@ -59,7 +59,7 @@ def handle_categories(id=None):
             response_body = {'message': 'deleted category: {}'.format(category_query.name)}
             return jsonify(response_body), 200
         
-        if request.method == 'PUT': # update category data
+        if request.method == 'PUT': # update category data, need "name" and "logo" in body req.
             if not request.is_json:
                 raise APIException("Missing JSON in request", status_code=400)
 
@@ -88,7 +88,8 @@ def handle_categories(id=None):
 @app.route('/admin/category', methods = ['POST'])
 def create_category():
     """
-    create new category
+    create new category as Administrator.
+    need "name" and "logo" in body request
     """
     if not request.is_json:
         raise APIException("Missing JSON in request", status_code=400)
@@ -117,6 +118,7 @@ def create_category():
 def get_all_categories():
     """
     This is a public endpoint. Returns all categories stored in the database.
+    this will be requested for the web app to configure at the start.
     """
     all_categories = Category.query.all()
     response_body = {'categories': list(map(lambda x: x.serialize(), all_categories))}
@@ -126,67 +128,62 @@ def get_all_categories():
 @app.route('/registro', methods=['POST'])
 def create_user():
     """
-    Create an user given the username, password and email. username can be = email without hostname
+    Create an user given the username, email and password. username will be email without hostname
     """
+    if not request.is_json:
+        raise APIException("Missing JSON in request", status_code=400)
+
     body = request.get_json()
 
     if body is None:  # 400 means bad request
         raise APIException("You need to specify the request body as a json object", status_code=400)
     if 'email' not in body:
         raise APIException('You need to specify the email', status_code=400)
-    if 'username' not in body:
-        raise APIException('You need to specify the username', status_code=400)
     if 'password' not in body:
         raise APIException('You need to specify the password', status_code=400)
 
-    new_user = User(email=body['email'], username=body['username'], password=body['password'])
-    db.session.add(new_user)
-    db.session.commit()
+    try:
+        new_user = User(email=body['email'], password=body['password'])
+        db.session.add(new_user)
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({"msg": "email already exists!!!"}), 400
+
     new_provider = Provider(user=new_user)
     new_employer = Employer(user=new_user)
     db.session.add(new_provider)
     db.session.add(new_employer)
     db.session.commit()
 
-    return jsonify(new_user.serialize()), 201  # 201 = Created
-
-
-@app.route('/user/<int:user_id>', methods=['GET', 'PUT', 'DELETE'])
-def get_user(user_id):
-    """
-    Get Data from 1 user.
-    """
-    user_query = User.query.get_or_404(user_id)
-
-    if request.method == 'GET':
-        return jsonify(dict({
-            **user_query.serialize(),
-            **user_query.serialize_provider_activity(),
-            **user_query.serialize_employer_activity(),
-        })), 200
-    elif request.method == 'DELETE':
-        employer_query = Employer.query.get_or_404(user_id)
-        provider_query = Provider.query.get_or_404(user_id)
-        db.session.delete(employer_query)
-        db.session.delete(provider_query)
-        db.session.delete(user_query)
-        db.session.commit()
-        return jsonify({"deleted": user_id}), 200
-    return "Invalid method", 400
+    return jsonify({"msg":"new user created"}), 201  # 201 = Created
 
 
 @app.route('/employer/<int:employer_id>', methods=['GET'])
 def get_employer(employer_id):
+    """
+    consulta publica sobre un empleador
+    """
     employer_q = Employer.query.get_or_404(employer_id)
-    if request.method == 'GET':
-        return jsonify({"employer": employer_q.serialize_public_info()}), 200
-    return "Invalid method", 400
+    return jsonify({"employer": employer_q.serialize_public_info()}), 200
+
+
+@app.route('/provider/<int:provider_id>', methods=['GET'])
+def get_provider(provider_id):
+    """
+    consulta publica sobre un proveedor
+    """
+    provider_q = Provider.query.get(provider_id)
+    if provider_q is None:
+        return jsonify({'Error': 'provedor {} no existe'.format(provider_id)}), 400
+
+    return jsonify({"provider": provider_q.serialize_public_info()}), 200
 
 
 @app.route('/provider/<int:provider_id>/categories', methods=['PUT'])
 def update_provider_categories(provider_id):
     """
-    configure the categories of each user
+    configure the categories in provider profile
     """
     request_body = request.get_json()
     provider_q = Provider.query.get_or_404(provider_id)
@@ -209,26 +206,31 @@ def update_provider_categories(provider_id):
     return jsonify({'message': 'updated provider {}'.format(provider_id)}), 200
 
 
-@app.route('/service_request', methods=['POST'])
-def create_request():
-    """
-    create service request from provider. API expects:
-        - name: name of the request
-        - description: text with the description of the request
-        - street: name of the street where the request is made
-        - home_number: number of the home in the street
-        - more_info: optional adicional info about the addres
-        - comuna: comuna of the service required
-        - region: region of the service required
-        - request_type: the type of the service request, can be open or direct
-        - employer_id: id of the employer requiring the service. from Front-end
-        - category_id: id of the category that require the service. from Front-end
-        - provider_id: optional, required only if is a direct request. from Front-end
-    """
-    request_body = request.get_json()
-
-
 # this only runs if `$ python src/main.py` is executed
 if __name__ == '__main__':
     PORT = int(os.environ.get('PORT', 3000))
     app.run(host='0.0.0.0', port=PORT, debug=False)
+
+
+# @app.route('/user/<int:user_id>', methods=['GET', 'PUT', 'DELETE'])
+# def get_user(user_id):
+#     """
+#     Get Data from 1 user.
+#     """
+#     user_query = User.query.get_or_404(user_id)
+
+#     if request.method == 'GET':
+#         return jsonify(dict({
+#             **user_query.serialize(),
+#             **user_query.serialize_provider_activity(),
+#             **user_query.serialize_employer_activity(),
+#         })), 200
+#     elif request.method == 'DELETE':
+#         employer_query = Employer.query.get_or_404(user_id)
+#         provider_query = Provider.query.get_or_404(user_id)
+#         db.session.delete(employer_query)
+#         db.session.delete(provider_query)
+#         db.session.delete(user_query)
+#         db.session.commit()
+#         return jsonify({"deleted": user_id}), 200
+#     return "Invalid method", 400

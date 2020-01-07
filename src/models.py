@@ -13,7 +13,6 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     role = db.Column(db.String(10), default='client', nullable=False) # Role is client or admin
     email = db.Column(db.String(120), unique=True, nullable=False)
-    username = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(30), nullable=False)
     register_date = db.Column(db.DateTime, default=datetime.now, nullable=False)
     profile_img = db.Column(db.String(60))
@@ -37,7 +36,6 @@ class User(db.Model):
     def serialize(self):
         return {
             'id': self.id,
-            'username': self.username,
             'join_date': self.register_date,
             'profile_img': self.profile_img,
             'first_name': self.fname,
