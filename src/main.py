@@ -128,7 +128,7 @@ def get_all_categories():
 @app.route('/registro', methods=['POST'])
 def create_user():
     """
-    Create an user given the username, email and password. username will be email without hostname
+    Create an user given the email and password.
     """
     if not request.is_json:
         raise APIException("Missing JSON in request", status_code=400)
@@ -164,7 +164,10 @@ def get_employer(employer_id):
     """
     consulta publica sobre un empleador
     """
-    employer_q = Employer.query.get_or_404(employer_id)
+    employer_q = Employer.query.get(employer_id)
+    if employer_q is None:
+        return jsonify({'Error': 'empleador %s no existe' %employer_id})
+
     return jsonify({"employer": employer_q.serialize_public_info()}), 200
 
 
@@ -186,7 +189,10 @@ def update_provider_categories(provider_id):
     configure the categories in provider profile
     """
     request_body = request.get_json()
-    provider_q = Provider.query.get_or_404(provider_id)
+    provider_q = Provider.query.get(provider_id)
+    if provider_q is None:
+        return jsonify({'Error': 'proveedor %s no existe' %provider_id}), 400
+
     # se agregan categorias entrantes
     for c in request_body['categories']:  # recibe una lista con el id de cada cat, dentro del valor "categories"
         new_cat = Category.query.get_or_404(c['id'])
@@ -203,7 +209,7 @@ def update_provider_categories(provider_id):
             db.session.commit()
             exist = False
 
-    return jsonify({'message': 'updated provider {}'.format(provider_id)}), 200
+    return jsonify({'message': 'provider {} updated'.format(provider_id)}), 200
 
 
 # this only runs if `$ python src/main.py` is executed

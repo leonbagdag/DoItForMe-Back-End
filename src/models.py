@@ -101,18 +101,27 @@ class Provider(db.Model):
     def __repr__(self):
         return '<Provider %r>' % self.id
 
-    def serialize(self):
+    def serialize_categories(self):
         return {
+            'categories': list(map(lambda x: x.serialize(), self.categories))
+        }
+
+    def serialize(self):
+        return dict({
             'score': self.score,
-            'categories': list(map(lambda x: x.serialize(), self.categories)),
             'contracts': list(map(lambda x: dict({**x.serialize(), **x.serialize_employer()}), self.contracts)),
             'offers': list(map(lambda x: x.serialize(), self.offers)),
             'requests': list(map(lambda x: x.serialize(), self.requests)),
-            'reviews': list(map(lambda x: x.serialize(), self.reviews)),
-        }
+            'reviews': list(map(lambda x: x.serialize(), self.reviews))},
+            **self.serialize_categories()
+        )
 
     def serialize_public_info(self):
-        return dict({'score': self.score}, **self.user.serialize())
+        return dict({
+            'score': self.score, 
+            'categories': list(map(lambda x: x.serialize(), self.categories))},
+            **self.user.serialize()
+        )
 
 class Contract(db.Model):
     __tablename__ = 'contract'
