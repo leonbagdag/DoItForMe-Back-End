@@ -44,6 +44,7 @@ def handle_hello():
 def handle_categories(id=None):
     """
     Get or Edit categories stored in database. This is visible only for de Administrator
+    ENDPOINT PRIVADO
     """
     if id is not None:
         category_query = Category.query.get(id)
@@ -90,6 +91,7 @@ def create_category():
     """
     create new category as Administrator.
     need "name" and "logo" in body request
+    ENDPOINT PRIVADO
     """
     if not request.is_json:
         raise APIException("Missing JSON in request", status_code=400)
@@ -119,6 +121,7 @@ def get_all_categories():
     """
     This is a public endpoint. Returns all categories stored in the database.
     this will be requested for the web app to configure at the start.
+    * PUBLIC ENDPOINT *
     """
     all_categories = Category.query.all()
     response_body = {'categories': list(map(lambda x: x.serialize(), all_categories))}
@@ -129,6 +132,7 @@ def get_all_categories():
 def create_user():
     """
     Create an user given the email and password.
+    * PUBLIC ENDPOINT *
     """
     if not request.is_json:
         raise APIException("Missing JSON in request", status_code=400)
@@ -156,17 +160,60 @@ def create_user():
     db.session.add(new_employer)
     db.session.commit()
 
-    return jsonify({"msg":"new user created"}), 201  # 201 = Created
+    return jsonify({"success":"nuevo usuario registrado"}), 201  # 201 = Created
+
+
+@app.route('/user/<int:user_id>/profile', methods=['PUT'])
+def set_user_profile(user_id):
+    """
+    actualiza los datos personales del usuario en la bd
+    *PRIVATE ENDPOINT*
+    """
+    if not request.is_json:
+        return jsonify({'Error': 'Missing JSON in request'}), 400
+
+    user_query = User.query.get(user_id)
+    if user_query is None:
+        return jsonify({'Error': 'usuario %s no encontrado' %user_id}), 400
+    
+    body = request.get_json()
+
+    if body is None:
+        return jsonify({'Error': 'no se encuentra datos JSON en cuerpo de request'}), 400
+
+    if 'fname' in body:
+        user_query.fname = body['fname']
+    if 'lname' in body:
+        user_query.lname = body['lname']
+    if 'street' in body:
+        user_query.street = body['street']
+    if 'home_number' in body:
+        user_query.home_number = body['home_number']
+    if 'more_info' in body:
+        user_query.more_info = body['more_info']
+    if 'region' in body:
+        user_query.region = body['region']
+    if 'comuna' in body:
+        user_query.comuna = body['comuna']
+    if 'rut' in body:
+        user_query.rut = body['rut']
+    if 'rut_serial' in body:
+        user_query.rut_serial = body['rut_serial']
+
+    db.session.commit()
+
+    return jsonify({'success': 'perfil de usuario %s actualizado' %user_id}), 200
 
 
 @app.route('/employer/<int:employer_id>', methods=['GET'])
 def get_employer(employer_id):
     """
     consulta publica sobre un empleador
+    *ENDPOINT PRIVADO*
     """
     employer_q = Employer.query.get(employer_id)
     if employer_q is None:
-        return jsonify({'Error': 'empleador %s no existe' %employer_id})
+        return jsonify({'Error': 'empleador %s no encontrado' %employer_id}), 400
 
     return jsonify({"employer": employer_q.serialize_public_info()}), 200
 
@@ -175,6 +222,7 @@ def get_employer(employer_id):
 def get_provider(provider_id):
     """
     consulta publica sobre un proveedor
+    *ENDPOINT PRIVADO*
     """
     provider_q = Provider.query.get(provider_id)
     if provider_q is None:
@@ -186,7 +234,8 @@ def get_provider(provider_id):
 @app.route('/provider/<int:provider_id>/categories', methods=['PUT'])
 def update_provider_categories(provider_id):
     """
-    configure the categories in provider profile
+    configure the categories in provider's profile
+    *PRIVATE ENDPOINT*
     """
     request_body = request.get_json()
     provider_q = Provider.query.get(provider_id)

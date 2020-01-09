@@ -16,15 +16,15 @@ class User(db.Model):
     password = db.Column(db.String(30), nullable=False)
     register_date = db.Column(db.DateTime, default=datetime.now, nullable=False)
     profile_img = db.Column(db.String(60))
-    fname = db.Column(db.String(20))
-    lname = db.Column(db.String(20))
-    street = db.Column(db.String(20))
+    fname = db.Column(db.String(30))
+    lname = db.Column(db.String(30))
+    street = db.Column(db.String(120))
     home_number = db.Column(db.String(20))
     more_info = db.Column(db.String(60))
-    region = db.Column(db.String(20))
-    comuna = db.Column(db.String(20))
-    rut = db.Column(db.String(10))
-    rut_serial = db.Column(db.String(20))
+    region = db.Column(db.String(60))
+    comuna = db.Column(db.String(60))
+    rut = db.Column(db.String(20))
+    rut_serial = db.Column(db.String(30))
 
     provider = db.relationship('Provider', back_populates='user', uselist=False, lazy=True) # 1 to 1 with provider
     employer = db.relationship('Employer', back_populates='user', uselist=False, lazy=True) # 1 to 1 with employer
