@@ -7,7 +7,7 @@ from flask_migrate import Migrate
 from flask_swagger import swagger
 from flask_cors import CORS
 from utils import APIException, generate_sitemap
-from models import db, User, Employer, Provider, Category, Contract
+from models import db, User, Employer, Provider, Category, Contract, Request, Offer, Review, 
 from sqlalchemy.exc import IntegrityError
 
 app = Flask(__name__)
@@ -27,8 +27,15 @@ def handle_invalid_usage(error):
 
 # generate sitemap with all your endpoints
 @app.route('/')
-def sitemap():
-    return generate_sitemap(app)
+def get_site_conf():
+    """
+    This is a public endpoint. Returns all categories, stats and configurations needed for the front-end app.
+    this will be requested for the web app to configure at the start.
+    * PUBLIC ENDPOINT *
+    """
+    all_categories = Category.query.all()
+    response_body = {'categories': list(map(lambda x: x.serialize(), all_categories))}
+    return jsonify(response_body), 200
 
 
 @app.route('/hello', methods=['POST', 'GET'])
@@ -114,17 +121,6 @@ def create_category():
         db.session.rollback()
         return jsonify({'Error': 'name or logo alredy exists'}), 400
 
-@app.route('/categories', methods = ['GET'])
-def get_all_categories():
-    """
-    This is a public endpoint. Returns all categories stored in the database.
-    this will be requested for the web app to configure at the start.
-    * PUBLIC ENDPOINT *
-    """
-    all_categories = Category.query.all()
-    response_body = {'categories': list(map(lambda x: x.serialize(), all_categories))}
-    return jsonify(response_body), 200
-
 
 @app.route('/registro', methods=['POST'])
 def create_user():
@@ -171,7 +167,7 @@ def user_login():
     * PUBLIC ENDPOINT *
     """
     if not request.is_json:
-        return jsonify({'Error': 'Missing JSON in reques'}), 400
+        return jsonify({'Error': 'Missing JSON in request'}), 400
     
     email = request.json.get('email', None)
     password = request.json.get('password', None)
@@ -245,7 +241,7 @@ def set_user_profile(user_id):
 def get_employer(employer_id):
     """
     consulta publica sobre un empleador
-    *ENDPOINT PRIVADO*
+    *ENDPOINT PUBLICO*
     """
     employer_q = Employer.query.get(employer_id)
     if employer_q is None:
@@ -258,7 +254,7 @@ def get_employer(employer_id):
 def get_provider(provider_id):
     """
     consulta publica sobre un proveedor
-    *ENDPOINT PRIVADO*
+    *ENDPOINT PUBLICO*
     """
     provider_q = Provider.query.get(provider_id)
     if provider_q is None:
@@ -270,7 +266,7 @@ def get_provider(provider_id):
 @app.route('/provider/<int:provider_id>/categories', methods=['PUT'])
 def update_provider_categories(provider_id):
     """
-    configure the categories in provider's profile
+    Configur las categorias favoritas del usuario como empleador
     *PRIVATE ENDPOINT*
     """
     request_body = request.get_json()
@@ -301,27 +297,3 @@ def update_provider_categories(provider_id):
 if __name__ == '__main__':
     PORT = int(os.environ.get('PORT', 3000))
     app.run(host='0.0.0.0', port=PORT, debug=False)
-
-
-# @app.route('/user/<int:user_id>', methods=['GET', 'PUT', 'DELETE'])
-# def get_user(user_id):
-#     """
-#     Get Data from 1 user.
-#     """
-#     user_query = User.query.get_or_404(user_id)
-
-#     if request.method == 'GET':
-#         return jsonify(dict({
-#             **user_query.serialize(),
-#             **user_query.serialize_provider_activity(),
-#             **user_query.serialize_employer_activity(),
-#         })), 200
-#     elif request.method == 'DELETE':
-#         employer_query = Employer.query.get_or_404(user_id)
-#         provider_query = Provider.query.get_or_404(user_id)
-#         db.session.delete(employer_query)
-#         db.session.delete(provider_query)
-#         db.session.delete(user_query)
-#         db.session.commit()
-#         return jsonify({"deleted": user_id}), 200
-#     return "Invalid method", 400
