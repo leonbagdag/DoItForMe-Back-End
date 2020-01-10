@@ -1,7 +1,7 @@
 """
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
-import os
+import os, re
 from flask import Flask, request, jsonify, url_for
 from flask_migrate import Migrate
 from flask_swagger import swagger
@@ -46,44 +46,43 @@ def handle_categories(id=None):
     Get or Edit categories stored in database. This is visible only for de Administrator
     ENDPOINT PRIVADO
     """
-    if id is not None:
-        category_query = Category.query.get(id)
-        if category_query is None:
-            raise APIException("Category {} not found".format(id), status_code=400)
+    category_query = Category.query.get(id)
+    if category_query is None:
+        return jsonify({'Error': 'Missing JSON in request'}), 400
 
-        if request.method == 'GET': # get 1 category
-            return jsonify(category_query.serialize()), 200
+    if request.method == 'GET': # get 1 category
+        return jsonify(category_query.serialize()), 200
 
-        if request.method == 'DELETE': # delete 1 category
-            db.session.delete(category_query)
+    if request.method == 'DELETE': # delete 1 category
+        db.session.delete(category_query)
+        db.session.commit()
+        response_body = {'message': 'deleted category: {}'.format(category_query.name)}
+        return jsonify(response_body), 200
+    
+    if request.method == 'PUT': # update category data, need "name" and "logo" in body req.
+        if not request.is_json:
+            return jsonify({'Error': 'Missing JSON in request'}), 400
+
+        name = request.json.get('name')
+        if not name:
+            return jsonify({'Error': 'Missing name parameter in request'}), 400
+
+        logo = request.json.get('logo')
+        if not logo:
+            return jsonify({'Error': 'Missing logo parameter in request'}), 400
+
+        try:
+            category_query.name = name
+            category_query.logo = logo
             db.session.commit()
-            response_body = {'message': 'deleted category: {}'.format(category_query.name)}
+            response_body = {'message': 'category with id: {} updated'.format(id)}
             return jsonify(response_body), 200
-        
-        if request.method == 'PUT': # update category data, need "name" and "logo" in body req.
-            if not request.is_json:
-                raise APIException("Missing JSON in request", status_code=400)
 
-            name = request.json.get('name')
-            if not name:
-                raise APIException("Missing name parameter in request", status_code=400)
+        except IntegrityError:
+            db.session.rollback()
+            return jsonify({'Error': 'name or logo alredy exists'}), 400
 
-            logo = request.json.get('logo')
-            if not logo:
-                raise APIException("Missing logo parameter in request", status_code=400)
-
-            try:
-                category_query.name = name
-                category_query.logo = logo
-                db.session.commit()
-                response_body = {'message': 'category with id: {} updated'.format(id)}
-                return jsonify(response_body), 200
-
-            except IntegrityError:
-                db.session.rollback()
-                raise APIException("Error, name or logo alredy exist", status_code=400)
-
-        raise APIException("Invalid Method", status_code=400)
+    raise APIException("Invalid Method", status_code=400)
 
 
 @app.route('/admin/category', methods = ['POST'])
@@ -94,15 +93,15 @@ def create_category():
     ENDPOINT PRIVADO
     """
     if not request.is_json:
-        raise APIException("Missing JSON in request", status_code=400)
+        return jsonify({'Error': 'Missing JSON in request'}), 400
 
     name = request.json.get('name')
     if not name:
-        raise APIException("Missing name parameter in request", status_code=400)
+        return jsonify({'Error': 'Missing name parameter in request'}), 400
 
     logo = request.json.get('logo')
     if not logo:
-        raise APIException("Missing logo parameter in request", status_code=400)
+        return jsonify({'Error': 'Missing logo parameter in request'}), 400
 
     try:
         new_category = Category(name=name, logo=logo)
@@ -113,8 +112,7 @@ def create_category():
         
     except IntegrityError:
         db.session.rollback()
-        raise APIException("Error, name or logo alredy exist", status_code=400)
-
+        return jsonify({'Error': 'name or logo alredy exists'}), 400
 
 @app.route('/categories', methods = ['GET'])
 def get_all_categories():
@@ -134,25 +132,28 @@ def create_user():
     Create an user given the email and password.
     * PUBLIC ENDPOINT *
     """
+        #Regular expression that checks a valid email
+    ereg = '^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$'
+        #Regular expression that checks a valid password
+    preg = '^.*(?=.{8,})(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).*$'
+
     if not request.is_json:
-        raise APIException("Missing JSON in request", status_code=400)
+        return jsonify({'Error':'Missing JSON in request'}), 400
 
-    body = request.get_json()
-
-    if body is None:  # 400 means bad request
-        raise APIException("You need to specify the request body as a json object", status_code=400)
-    if 'email' not in body:
-        raise APIException('You need to specify the email', status_code=400)
-    if 'password' not in body:
-        raise APIException('You need to specify the password', status_code=400)
+    email = request.json.get('email', None)
+    password = request.json.get('password', None)
+    if not (re.search(ereg, email)):
+        return jsonify({'Error':'Invalid email format'}), 400
+    if password is None:
+        return jsonify({'Error':'password parameter not found in requesr'}), 400
 
     try:
-        new_user = User(email=body['email'], password=body['password'])
+        new_user = User(email=email, password=password)
         db.session.add(new_user)
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        return jsonify({"msg": "email already exists!!!"}), 400
+        return jsonify({"Error": "email already exists"}), 400
 
     new_provider = Provider(user=new_user)
     new_employer = Employer(user=new_user)
@@ -161,6 +162,41 @@ def create_user():
     db.session.commit()
 
     return jsonify({"success":"nuevo usuario registrado"}), 201  # 201 = Created
+
+
+@app.route('/login', methods=['POST'])
+def user_login():
+    """
+    user login with email and password
+    * PUBLIC ENDPOINT *
+    """
+    if not request.is_json:
+        return jsonify({'Error': 'Missing JSON in reques'}), 400
+    
+    email = request.json.get('email', None)
+    password = request.json.get('password', None)
+    if email is None:
+        return jsonify({'Error': 'Missin email parameter in JSON'}), 400
+    if password is None:
+        return jsonify({'Error': 'Missing password parameter in JSON'}), 400
+    
+    user_query = User.query.filter_by(email=email).first()
+    if user_query is None:
+        return jsonify({'Error': "email: '%s' not found" %email}), 404
+    
+    if user_query.password == password:
+        data = {
+            'access_token': "",
+            'user': dict({
+                **user_query.serialize(),
+                **user_query.serialize_provider_activity(),
+                **user_query.serialize_employer_activity()
+            }),
+            'msg': 'success'
+        }
+        return jsonify(data), 200
+
+    return jsonify({'Error': 'wrong password, try again...'}), 404
 
 
 @app.route('/user/<int:user_id>/profile', methods=['PUT'])
