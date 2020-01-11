@@ -23,8 +23,6 @@ class User(db.Model):
     street = db.Column(db.String(120))
     home_number = db.Column(db.String(20))
     more_info = db.Column(db.String(60))
-    # region = db.Column(db.String(60))
-    # comuna = db.Column(db.String(60))
     rut = db.Column(db.String(20))
     rut_serial = db.Column(db.String(30))
     comuna_id = db.Column(db.Integer, db.ForeignKey('comuna.id'))
@@ -192,8 +190,6 @@ class Request(db.Model):
     street = db.Column(db.String(20), nullable=False)
     home_number = db.Column(db.String(20), nullable=False)
     more_info = db.Column(db.String(20))
-    # comuna = db.Column(db.String(20), nullable=False)
-    # region = db.Column(db.String(20), nullable=False)
     creation_date = db.Column(db.DateTime, default=datetime.now)
     service_status = db.Column(db.String(20), default='active') #options are: active, paused, closed
     employer_id = db.Column(db.Integer, db.ForeignKey('employer.id'))
@@ -304,7 +300,7 @@ class Review(db.Model):
 class Region(db.Model):
     __tablename__ = 'region'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(60), nullable = False)
+    name = db.Column(db.String(60), nullable = False, unique=True)
 
     comunas = db.relationship('Comuna', back_populates='region', lazy=True)
 
@@ -324,7 +320,7 @@ class Region(db.Model):
 class Comuna(db.Model):
     __tablename__ = 'comuna'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(60), nullable = False)
+    name = db.Column(db.String(60), nullable = False, unique=True)
     region_id = db.Column(db.Integer, db.ForeignKey('region.id'))
 
     region = db.relationship('Region', back_populates='comunas', uselist=False, lazy=True)

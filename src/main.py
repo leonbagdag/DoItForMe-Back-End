@@ -7,7 +7,7 @@ from flask_migrate import Migrate
 from flask_swagger import swagger
 from flask_cors import CORS
 from utils import APIException, generate_sitemap
-from models import db, User, Employer, Provider, Category, Contract, Request, Offer, Review
+from models import db, User, Employer, Provider, Category, Contract, Request, Offer, Review, Region, Comuna
 from sqlalchemy.exc import IntegrityError
 
 app = Flask(__name__)
@@ -34,7 +34,13 @@ def get_site_conf():
     * PUBLIC ENDPOINT *
     """
     all_categories = Category.query.all()
-    response_body = {'categories': list(map(lambda x: x.serialize(), all_categories))}
+    all_regions = Region.query.all()
+    response_body = {
+        'start_data': dict({
+            'categories': list(map(lambda x: x.serialize(), all_categories)),
+            'regions': list(map(lambda x: x.serialize(), all_regions)),
+        })
+    }
     return jsonify(response_body), 200
 
 
@@ -47,15 +53,89 @@ def handle_hello():
     return jsonify(response_body), 200
 
 
-@app.route('/admin/category/<int:id>', methods=['GET', 'PUT', 'DELETE'])
-def handle_categories(id=None):
+@app.route('/admin/region/create', methods=['POST'])
+def create_region():
+    """
+    *PRIVATE ENDPOINT*
+    """
+    if not request.is_json:
+        return jsonify({'Error': 'Missing JSON in request'}), 400
+
+    name = request.json.get('name')
+    if not name:
+        return jsonify({'Error': 'Missing name parameter in request'}), 400
+
+    try:
+        new_region = Region(name=name)
+        db.session.add(new_region)
+        db.session.commit()
+        return jsonify({'message': 'created region %s with id: %s' %(new_region.name, new_region.id)}), 201
+        
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'Error': 'region alredy exists'}), 400
+
+@app.route('/admin/region', methods=['GET'])
+def all_regions():
+    """
+    *PRIVATE REGION*
+    get all regions stored in database
+    """
+    all_regions = Region.query.all()
+    return jsonify({'regions': list(map(lambda x: x.serialize(), all_regions))}), 200
+
+
+@app.route('/admin/region/<int:reg_id>', methods=['GET', 'PUT', 'DELETE'])
+def handle_regions(reg_id=None):
+    """
+    Get or Edit regions stored in database. This is visible only for de Administrator
+    ENDPOINT PRIVADO
+    """
+    region_query = Region.query.get(reg_id)
+
+    if region_query is None:
+        return jsonify({'Error': 'Region %s not found'}), 404
+
+    if request.method == 'GET': # get 1 region
+        region_query = Region.query.get(reg_id)
+        return jsonify({'region': region_query.serialize()}), 200
+
+    if request.method == 'DELETE': # delete 1 Region
+        db.session.delete(region_query)
+        db.session.commit()
+        response_body = {'message': 'deleted Region: {}'.format(region_query.name)}
+        return jsonify(response_body), 200
+    
+    if request.method == 'PUT': # update Region data, need "name" and "logo" in body req.
+        if not request.is_json:
+            return jsonify({'Error': 'Missing JSON in request'}), 400
+        
+        name = request.json.get('name')
+        if not name:
+            return jsonify({'Error': 'Missing name parameter in request'}), 400
+
+        try:
+            region_query.name = name
+            db.session.commit()
+            response_body = {'message': 'category with id: {} updated'.format(id)}
+            return jsonify(response_body), 200
+
+        except IntegrityError:
+            db.session.rollback()
+            return jsonify({'Error': 'Region name alredy exists'}), 400
+
+    raise APIException("Invalid Method", status_code=400)
+
+
+@app.route('/admin/category/<int:cat_id>', methods=['GET', 'PUT', 'DELETE'])
+def handle_categories(cat_id=None):
     """
     Get or Edit categories stored in database. This is visible only for de Administrator
     ENDPOINT PRIVADO
     """
-    category_query = Category.query.get(id)
+    category_query = Category.query.get(cat_id)
     if category_query is None:
-        return jsonify({'Error': 'Missing JSON in request'}), 400
+        return jsonify({'Error': 'Category %s not found'}), 404
 
     if request.method == 'GET': # get 1 category
         return jsonify(category_query.serialize()), 200
@@ -92,7 +172,7 @@ def handle_categories(id=None):
     raise APIException("Invalid Method", status_code=400)
 
 
-@app.route('/admin/category', methods = ['POST'])
+@app.route('/admin/category/create', methods = ['POST'])
 def create_category():
     """
     create new category as Administrator.
