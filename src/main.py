@@ -7,7 +7,7 @@ from flask_migrate import Migrate
 from flask_swagger import swagger
 from flask_cors import CORS
 from utils import APIException, generate_sitemap
-from models import db, User, Employer, Provider, Category, Contract, Request, Offer, Review, 
+from models import db, User, Employer, Provider, Category, Contract, Request, Offer, Review
 from sqlalchemy.exc import IntegrityError
 
 app = Flask(__name__)
@@ -125,13 +125,18 @@ def create_category():
 @app.route('/registro', methods=['POST'])
 def create_user():
     """
-    Create an user given the email and password.
     * PUBLIC ENDPOINT *
+    Create an user given the email and password.
+    requerido: {
+        "email":"email@any.com",
+        "password":"password"
+    }
+    respuesta: {
+        "success":"nuevo usuario registrado", 200
+    }
     """
         #Regular expression that checks a valid email
     ereg = '^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$'
-        #Regular expression that checks a valid password
-    preg = '^.*(?=.{8,})(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).*$'
 
     if not request.is_json:
         return jsonify({'Error':'Missing JSON in request'}), 400
@@ -165,6 +170,44 @@ def user_login():
     """
     user login with email and password
     * PUBLIC ENDPOINT *
+    requerido: 
+    {
+        "email":"email@any.com",
+        "password":"password"
+    }
+    return-json:  si todo está ok y usuario existe...
+    {
+        "access_token": "access_token_generated",
+        "msg": "success",
+        "user": {
+            "address": {
+                "comuna": "comuna",
+                "home_number": "home_num",
+                "more_info": "more_info",
+                "region": "region",
+                "street": "street"
+            },
+            "employer": {
+                "contracts": [],
+                "requests": [],
+                "reviews": [],
+                "score": 0.0
+            },
+            "first_name": "fname",
+            "id": 9,
+            "join_date": "since",
+            "last_name": "lname",
+            "profile_img": "link_to_img",
+            "provider": {
+                "categories": [],
+                "contracts": [],
+                "offers": [],
+                "requests": [],
+                "reviews": [],
+                "score": 0.0
+            }
+        }
+    }
     """
     if not request.is_json:
         return jsonify({'Error': 'Missing JSON in request'}), 400
@@ -200,6 +243,21 @@ def set_user_profile(user_id):
     """
     actualiza los datos personales del usuario en la bd
     *PRIVATE ENDPOINT*
+    requerido:
+    {
+        "fname":"fname",
+        "lname":"lname",
+        "rut": "rut",
+        "comuna": "comuna",
+        "region": "region",
+        "street": "street",
+        "home_number": "home_num",
+        "more_info": "more_info"
+    }
+    return json:
+    {
+        "success": "perfil de usuario: id actualizado", 200
+    }
     """
     if not request.is_json:
         return jsonify({'Error': 'Missing JSON in request'}), 400
@@ -241,7 +299,25 @@ def set_user_profile(user_id):
 def get_employer(employer_id):
     """
     consulta publica sobre un empleador
-    *ENDPOINT PUBLICO*
+    *ENDPOINT PRIVADO*
+    return json:
+    {
+        "employer": {
+            "address": {
+                "comuna": "comuna",
+                "home_number": "home_num",
+                "more_info": "more_info",
+                "region": "Region",
+                "street": "street"
+            },
+            "first_name": "fname",
+            "id": 9,
+            "join_date": "join date",
+            "last_name": "lname",
+            "profile_img": "url_to_img",
+            "score": 0.0
+        }
+    }
     """
     employer_q = Employer.query.get(employer_id)
     if employer_q is None:
@@ -254,7 +330,26 @@ def get_employer(employer_id):
 def get_provider(provider_id):
     """
     consulta publica sobre un proveedor
-    *ENDPOINT PUBLICO*
+    *ENDPOINT PRIVADO*
+    return json:
+    {
+        "provider": {
+            "address": {
+                "comuna": "Santiago",
+                "home_number": "2004",
+                "more_info": "depto 206 torre B",
+                "region": "Region Metropolitana",
+                "street": "Av. Vicuña Mackenna"
+            },
+            "categories": [],
+            "first_name": "fname",
+            "id": 9,
+            "join_date": "since",
+            "last_name": "lname",
+            "profile_img": "url_to_img",
+            "score": 0.0
+        }
+    }
     """
     provider_q = Provider.query.get(provider_id)
     if provider_q is None:
@@ -268,6 +363,18 @@ def update_provider_categories(provider_id):
     """
     Configur las categorias favoritas del usuario como empleador
     *PRIVATE ENDPOINT*
+    requerido:
+    {
+        "categories": [
+            "id": 1,
+            "id": 2,
+            "id": 3,
+        ]
+    }
+    return-json:
+    {
+        "message": "provider <provider_id> updated", 200
+    }
     """
     request_body = request.get_json()
     provider_q = Provider.query.get(provider_id)
