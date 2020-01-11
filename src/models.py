@@ -46,7 +46,7 @@ class User(db.Model):
                 'street': self.street,
                 'home_number': self.home_number,
                 'more_info': self.more_info,
-                'comuna': self.comuna.serialize()
+                'comuna': self.comuna_id
             })
         }
 
@@ -334,7 +334,12 @@ class Comuna(db.Model):
         return {
             'id': self.id,
             'name': self.name,
-            'region': self.region.serialize()
+            'region': self.region_id
+        }
+    
+    def serialize_region(self):
+        return {
+            "region": self.region.serialize()
         }
 
     def serialize_users(self):

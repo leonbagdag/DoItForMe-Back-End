@@ -18,6 +18,7 @@ mysql-connector-python = "*"
 flask-cors = "*"
 gunicorn = "*"
 mysqlclient = "*"
+flask-jwt-extended = "*"
 
 [requires]
 python_version = "3.6"

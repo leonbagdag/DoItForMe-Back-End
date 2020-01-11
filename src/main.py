@@ -9,11 +9,16 @@ from flask_cors import CORS
 from utils import APIException, generate_sitemap
 from models import db, User, Employer, Provider, Category, Contract, Request, Offer, Review, Region, Comuna
 from sqlalchemy.exc import IntegrityError
+from flask_jwt_extended import (
+    JWTManager, jwt_required, create_access_token, get_jwt_identity
+)
 
 app = Flask(__name__)
 app.url_map.strict_slashes = False
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DB_CONNECTION_STRING')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['JWT_SECRET_KEY'] = '1478520.Lucena1953'
+jwt = JWTManager(app)
 MIGRATE = Migrate(app, db)
 db.init_app(app)
 CORS(app)
@@ -302,10 +307,11 @@ def user_login():
     user_query = User.query.filter_by(email=email).first()
     if user_query is None:
         return jsonify({'Error': "email: '%s' not found" %email}), 404
-    
+    access_token = create_access_token(identity=email)
+
     if user_query.password == password:
         data = {
-            'access_token': "",
+            'access_token': access_token,
             'user': dict({
                 **user_query.serialize(),
                 **user_query.serialize_provider_activity(),
@@ -319,6 +325,7 @@ def user_login():
 
 
 @app.route('/user/<int:user_id>/profile', methods=['PUT'])
+@jwt_required
 def set_user_profile(user_id):
     """
     actualiza los datos personales del usuario en la bd
@@ -328,8 +335,7 @@ def set_user_profile(user_id):
         "fname":"fname",
         "lname":"lname",
         "rut": "rut",
-        "comuna": "comuna",
-        "region": "region",
+        "comuna": <comuna_id>
         "street": "street",
         "home_number": "home_num",
         "more_info": "more_info"
@@ -345,6 +351,9 @@ def set_user_profile(user_id):
     user_query = User.query.get(user_id)
     if user_query is None:
         return jsonify({'Error': 'usuario %s no encontrado' %user_id}), 400
+
+    if user_query.email != get_jwt_identity:
+        return jsonify({'Error': 'Access denied'}), 401
     
     body = request.get_json()
 
@@ -361,10 +370,6 @@ def set_user_profile(user_id):
         user_query.home_number = body['home_number']
     if 'more_info' in body:
         user_query.more_info = body['more_info']
-    if 'region' in body:
-        user_query.region = body['region']
-    if 'comuna' in body:
-        user_query.comuna = body['comuna']
     if 'rut' in body:
         user_query.rut = body['rut']
     if 'rut_serial' in body:
