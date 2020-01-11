@@ -382,7 +382,7 @@ def update_provider_categories(provider_id):
         return jsonify({'Error': 'proveedor %s no existe' %provider_id}), 400
 
     # se agregan categorias entrantes
-    for c in request_body['categories']:  # recibe una lista con el id de cada cat, dentro del valor "categories"
+    for c in request_body['categories']:  # recorre la lista
         new_cat = Category.query.get_or_404(c['id'])
         provider_q.categories.append(new_cat)
     db.session.commit()
@@ -398,6 +398,60 @@ def update_provider_categories(provider_id):
             exist = False
 
     return jsonify({'message': 'provider {} updated'.format(provider_id)}), 200
+
+
+@app.route("/service/request", methods=["POST"])
+def create_service_req():
+    """
+    crea un request de un servicio
+
+    """
+
+
+@app.route("/contract/create", methods=["POST"])
+def create_new_contract():
+    """
+    crea un nuevo contrato entre un empleador y un proveedor.
+    *PRIVATE ENDPOINT*
+    requerido:
+    {
+        "provider": provider_id,
+        "employer": employer_id,
+        "service": service_req_id
+    }
+    return-json:
+    {
+        "success": "contract created" ,200
+    }
+    """
+    if not request.is_json:
+        return jsonify({'Error': 'Missing JSON in request'}), 400
+
+    provider = request.json.get('provider', None)
+    if provider is None:
+        return jsonify({'Error': 'Missing provider id in body'}), 400
+    employer = request.json.get('employer', None)
+    if employer is None:
+        return jsonify({'Error': 'Missing provider id in body'}), 400
+    service = request.json.get('service', None)
+    if service is None:
+        return jsonify({'Error': 'Missing service id in body'}), 400
+
+    provider_q = Provider.query.get(provider)
+    if provider_q is None:
+        return jsonify({'Error', 'provider %s not found' %provider}), 404
+    employer_q = Employer.query.get(employer)
+    if employer_q is None:
+        return jsonify({'Error', 'employer %s not found' %employer}), 404
+    service_q = Request.query.get(service)
+    if service_q is None:
+        return jsonify({'Error', 'service %s not found' %service}), 404
+
+    new_contract = Contract(employer=employer_q, provider=provider_q, request=service_q)
+    db.session.add(new_contract)
+    db.session.commit()
+
+    return jsonify({'Success': 'Contract created'}), 200
 
 
 # this only runs if `$ python src/main.py` is executed

@@ -8,6 +8,8 @@ provider_category = db.Table('provider_catgory', db.metadata,
     db.Column("provider_id", db.Integer, db.ForeignKey("provider.id")),
     db.Column("category_id", db.Integer, db.ForeignKey("category.id"))
 )
+
+
 class User(db.Model):
     __tablename__ = 'user'
     id = db.Column(db.Integer, primary_key=True)
@@ -62,6 +64,7 @@ class User(db.Model):
     def serialize_employer_activity(self):
         return {'employer': self.employer.serialize()}
 
+
 class Employer(db.Model):
     __tablename__ = 'employer'
     id = db.Column(db.Integer, db.ForeignKey('user.id'), primary_key=True)
@@ -85,6 +88,7 @@ class Employer(db.Model):
 
     def serialize_public_info(self):
         return dict({'score': self.score}, **self.user.serialize())
+
 
 class Provider(db.Model):
     __tablename__ = 'provider'
@@ -123,6 +127,7 @@ class Provider(db.Model):
             **self.user.serialize()
         )
 
+
 class Contract(db.Model):
     __tablename__ = 'contract'
     id = db.Column(db.Integer, primary_key=True)
@@ -131,9 +136,11 @@ class Contract(db.Model):
     contract_end_date = db.Column(db.DateTime)
     employer_id = db.Column(db.Integer, db.ForeignKey('employer.id'))
     provider_id = db.Column(db.Integer, db.ForeignKey('provider.id'))
+    service_id = db.Column(db.Integer, db.ForeignKey('request.id'))
 
     employer = db.relationship('Employer', back_populates='contracts', uselist=False, lazy=True)
     provider = db.relationship('Provider', back_populates='contracts', uselist=False, lazy=True)
+    request = db.relationship('Request', back_populates='contract', uselist=False, lazy=True)
     
     def __repr__(self):
         return '<Contract %r>' % self.id
@@ -151,6 +158,10 @@ class Contract(db.Model):
 
     def serialize_employer(self):
         return {'employer': self.employer.serialize_public_info()}
+
+    def serialize_service_request(self):
+        return {'service': self.request.serialize()}
+
 
 class Category(db.Model):
     __tablename__ = 'category'
@@ -171,6 +182,7 @@ class Category(db.Model):
             'logo': self.logo,
         }
 
+
 class Request(db.Model):
     __tablename__ = 'request'
     id = db.Column(db.Integer, primary_key=True)
@@ -185,16 +197,17 @@ class Request(db.Model):
     service_status = db.Column(db.String(20), default='active') #options are: active, paused, closed
     request_type = db.Column(db.String(20)) #Types are open request or direct request
     employer_id = db.Column(db.Integer, db.ForeignKey('employer.id'))
-    provider_id = db.Column(db.Integer, db.ForeignKey('provider.id'), default=0) # si es una solicitud directa, se debe especificar quien es el proveedor
+    provider_id = db.Column(db.Integer, db.ForeignKey('provider.id')) # si es una solicitud directa, se debe especificar quien es el proveedor
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'))
 
     employer = db.relationship('Employer', back_populates='requests', uselist=False, lazy=True)
     category = db.relationship('Category', back_populates='requests', uselist=False, lazy=True)
     provider = db.relationship('Provider', back_populates='requests', uselist=False, lazy=True)
     offers = db.relationship('Offer', back_populates='request', lazy=True)
+    contract = db.relationship('Contract', back_populates='request', uselist=False, lazy=True)
 
     def __repr__(self):
-        return '<Request %r>' % self.id
+        return '<Request %r>' % self.i
 
     def serialize(self):
         return {
@@ -211,8 +224,8 @@ class Request(db.Model):
                 'more_info': self.more_info,
                 'comuna': self.comuna,
                 'region': self.region,
-
             }),
+            'contract' : self.contract.serialize(),
         }
 
     def serialize_offers(self):
@@ -223,6 +236,8 @@ class Request(db.Model):
 
     def serialize_provider(self):
         return {'provider': self.provider.serialize_public_info()} #provider who won the request thru offer
+
+
 class Offer(db.Model):
     __tablename__ = 'offer'
     id = db.Column(db.Integer, primary_key=True)
@@ -249,6 +264,7 @@ class Offer(db.Model):
 
     def serlialize_provider(self):
         return {'provider': self.provider.serialize_public_info()}
+
 
 class Review(db.Model):
     __tablename__ = 'review'
