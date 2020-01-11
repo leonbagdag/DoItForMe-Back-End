@@ -23,14 +23,16 @@ class User(db.Model):
     street = db.Column(db.String(120))
     home_number = db.Column(db.String(20))
     more_info = db.Column(db.String(60))
-    region = db.Column(db.String(60))
-    comuna = db.Column(db.String(60))
+    # region = db.Column(db.String(60))
+    # comuna = db.Column(db.String(60))
     rut = db.Column(db.String(20))
     rut_serial = db.Column(db.String(30))
+    comuna_id = db.Column(db.Integer, db.ForeignKey('comuna.id'))
 
     provider = db.relationship('Provider', back_populates='user', uselist=False, lazy=True) # 1 to 1 with provider
     employer = db.relationship('Employer', back_populates='user', uselist=False, lazy=True) # 1 to 1 with employer
     reviews_made = db.relationship('Review', back_populates='user', lazy=True) # all reviews made by the user to another user, this as a provider or employer
+    comuna = db.relationship('Comuna', back_populates='users', uselist=False, lazy = True)
 
     def __repr__(self):
         return '<User %r>' % self.username
@@ -46,8 +48,7 @@ class User(db.Model):
                 'street': self.street,
                 'home_number': self.home_number,
                 'more_info': self.more_info,
-                'comuna': self.comuna,
-                'region': self.region,
+                'comuna': self.comuna.serialize()
             })
         }
 
@@ -191,20 +192,21 @@ class Request(db.Model):
     street = db.Column(db.String(20), nullable=False)
     home_number = db.Column(db.String(20), nullable=False)
     more_info = db.Column(db.String(20))
-    comuna = db.Column(db.String(20), nullable=False)
-    region = db.Column(db.String(20), nullable=False)
+    # comuna = db.Column(db.String(20), nullable=False)
+    # region = db.Column(db.String(20), nullable=False)
     creation_date = db.Column(db.DateTime, default=datetime.now)
     service_status = db.Column(db.String(20), default='active') #options are: active, paused, closed
-    request_type = db.Column(db.String(20)) #Types are open request or direct request
     employer_id = db.Column(db.Integer, db.ForeignKey('employer.id'))
     provider_id = db.Column(db.Integer, db.ForeignKey('provider.id')) # si es una solicitud directa, se debe especificar quien es el proveedor
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'))
+    comuna_id = db.Column(db.Integer, db.ForeignKey('comuna.id'))
 
     employer = db.relationship('Employer', back_populates='requests', uselist=False, lazy=True)
     category = db.relationship('Category', back_populates='requests', uselist=False, lazy=True)
     provider = db.relationship('Provider', back_populates='requests', uselist=False, lazy=True)
     offers = db.relationship('Offer', back_populates='request', lazy=True)
     contract = db.relationship('Contract', back_populates='request', uselist=False, lazy=True)
+    comuna = db.relationship('Comuna', back_populates='requests', uselist=False, lazy=True)
 
     def __repr__(self):
         return '<Request %r>' % self.i
@@ -297,3 +299,54 @@ class Review(db.Model):
 
     def serialize_provider(self): #provider who owns the review
         return {'provider': self.provider.serialize_public_info()}
+
+
+class Region(db.Model):
+    __tablename__ = 'region'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(60), nullable = False)
+
+    comunas = db.relationship('Comuna', back_populates='region', lazy=True)
+
+    def __repr__(self):
+        return '<Region %r>' %self.name
+
+    def serialize(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+        }
+    
+    def serialize_comunas(self):
+        return {'comunas': list(map(lambda x: x.serialize(), self.comunas))}
+
+
+class Comuna(db.Model):
+    __tablename__ = 'comuna'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(60), nullable = False)
+    region_id = db.Column(db.Integer, db.ForeignKey('region.id'))
+
+    region = db.relationship('Region', back_populates='comunas', uselist=False, lazy=True)
+    users = db.relationship('User', back_populates='comuna', lazy=True)
+    requests = db.relationship('Request', back_populates='comuna', lazy=True)
+
+    def __repr__(self):
+        return '<Comuna %r>' %self.name
+
+    def serialize(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'region': self.region.serialize()
+        }
+
+    def serialize_users(self):
+        return {
+            "users": list(map(lambda x: x.serialize(), self.users))
+        }
+
+    def serialize_services(self):
+        return {
+            "services": list(map(lambda x: x.serialize(), self.requests))
+        }

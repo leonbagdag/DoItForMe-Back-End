@@ -404,7 +404,17 @@ def update_provider_categories(provider_id):
 def create_service_req():
     """
     crea un request de un servicio
+    requerido:
+    {
+        "name": "service_name",
+        "description": "service_description",
+        "street": "street_address",
+        "home_number": "home_number_address",
+        "more_info": "more info about home",
+        "comuna": <comuna_id>,
+        
 
+    }
     """
 
 
