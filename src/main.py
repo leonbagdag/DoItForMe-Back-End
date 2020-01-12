@@ -590,6 +590,21 @@ def create_new_contract():
     }), 200
 
 
+"""
+What's missing:
+    1) endpoint for creating a new service request
+    2) endpoint for update a contract (only for employer user)
+    3) endpoint for update or delete a service request
+    4) endpoint for get contract info as a provider
+    5) endpoint for get contract info as a employer
+    6) endpoint for create a offer
+    7) endpoint for get all the offers for a specific request (as a employer)
+    8) endpoint for get all the offers of a provider
+    7) endpoint for update or delete a offer
+
+"""
+
+
 # this only runs if `$ python src/main.py` is executed
 if __name__ == '__main__':
     PORT = int(os.environ.get('PORT', 3000))
