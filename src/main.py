@@ -2,6 +2,7 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 from functools import wraps
+from datetime import timedelta
 import os, re
 from flask import Flask, request, jsonify, url_for
 from flask_migrate import Migrate
@@ -15,7 +16,7 @@ from models import (
 from sqlalchemy.exc import IntegrityError
 from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token, get_jwt_identity, 
-    verify_jwt_in_request, get_jwt_claims
+    verify_jwt_in_request, get_jwt_claims, get_raw_jwt
 )
 
 app = Flask(__name__)
@@ -35,7 +36,7 @@ def jwt_admin_required(fn):
         verify_jwt_in_request()
         claims = get_jwt_claims()
         if claims['role'] != 'admin':
-            return jsonify({'msg': 'Admins Only'}), 403
+            return jsonify({'msg': 'Admins Only'}), 401
         else:
             return fn(*args, **kwargs)
     return wrapper
@@ -79,7 +80,7 @@ def get_site_conf():
     return jsonify(response_body), 200
 
 
-@app.route('/admin/region/create', methods=['POST'])
+@app.route('/admin/region/create', methods=['POST']) #ready!
 @jwt_admin_required
 def create_region():
 
@@ -104,7 +105,7 @@ def create_region():
         return jsonify({'Error': 'region alredy exists'}), 400
 
 
-@app.route('/admin/region/<int:reg_id>', methods=['PUT', 'DELETE'])
+@app.route('/admin/region/<int:reg_id>', methods=['PUT', 'DELETE']) #ready!
 @jwt_admin_required
 def handle_regions(reg_id=None):
     """
@@ -147,8 +148,8 @@ def handle_regions(reg_id=None):
     raise APIException("Invalid Method", status_code=400)
 
 
-@app.route('/admin/category/<int:cat_id>', methods=['PUT', 'DELETE'])
-@jwt_required
+@app.route('/admin/category/<int:cat_id>', methods=['PUT', 'DELETE']) #ready!
+@jwt_admin_required
 def handle_categories(cat_id=None):
     """
     Get or Edit categories stored in database. This is visible only for de Administrator
@@ -194,8 +195,8 @@ def handle_categories(cat_id=None):
     raise APIException("Invalid Method", status_code=400)
 
 
-@app.route('/admin/category/create', methods = ['POST'])
-@jwt_required
+@app.route('/admin/category/create', methods = ['POST']) #ready!
+@jwt_admin_required
 def create_category():
     """
     create new category as Administrator.
@@ -227,8 +228,8 @@ def create_category():
         return jsonify({'Error': 'name or logo alredy exists'}), 400
 
 
-@app.route('/registro', methods=['POST'])
-def create_user():
+@app.route('/registro', methods=['POST']) #ready
+def create_new_user():
     """
     * PUBLIC ENDPOINT *
     Create an user given the email and password.
@@ -270,7 +271,7 @@ def create_user():
     return jsonify({"success":"nuevo usuario registrado"}), 201  # 201 = Created
 
 
-@app.route('/login', methods=['POST'])
+@app.route('/login', methods=['POST']) #ready
 def user_login():
     """
     user login with email and password
@@ -326,7 +327,7 @@ def user_login():
     user_query = User.query.filter_by(email=email).first()
     if user_query is None:
         return jsonify({'Error': "email: '%s' not found" %email}), 404
-    access_token = create_access_token(identity=user_query)
+    access_token = create_access_token(identity=user_query, expires_delta=timedelta(days=1))
 
     if user_query.password == password:
         data = {
@@ -343,7 +344,7 @@ def user_login():
     return jsonify({'Error': 'wrong password, try again...'}), 404
 
 
-@app.route('/user/<int:user_id>/profile', methods=['PUT'])
+@app.route('/user/<int:user_id>/profile', methods=['PUT']) #ready
 @jwt_required
 def set_user_profile(user_id):
     """
@@ -409,7 +410,8 @@ def set_user_profile(user_id):
     return jsonify(user_query.serialize()), 200
 
 
-@app.route('/employer/<int:employer_id>', methods=['GET'])
+@app.route('/employer/<int:employer_id>', methods=['GET']) #ready
+@jwt_required
 def get_employer(employer_id):
     """
     consulta publica sobre un empleador
@@ -440,7 +442,8 @@ def get_employer(employer_id):
     return jsonify({"employer": employer_q.serialize_public_info()}), 200
 
 
-@app.route('/provider/<int:provider_id>', methods=['GET'])
+@app.route('/provider/<int:provider_id>', methods=['GET']) #ready
+@jwt_required
 def get_provider(provider_id):
     """
     consulta publica sobre un proveedor
@@ -472,7 +475,8 @@ def get_provider(provider_id):
     return jsonify({"provider": provider_q.serialize_public_info()}), 200
 
 
-@app.route('/provider/<int:provider_id>/categories', methods=['PUT'])
+@app.route('/provider/<int:provider_id>/categories', methods=['PUT']) #ready
+@jwt_required
 def update_provider_categories(provider_id):
     """
     Configur las categorias favoritas del usuario como empleador
@@ -486,8 +490,12 @@ def update_provider_categories(provider_id):
         ]
     }
     """
+    if not request.is_json:
+        return jsonify({'Error': 'Missing JSON in request'}), 400
+
     request_body = request.get_json()
     provider_q = Provider.query.get(provider_id)
+
     if provider_q is None:
         return jsonify({'Error': 'proveedor %s no existe' %provider_id}), 400
 
@@ -514,6 +522,7 @@ def update_provider_categories(provider_id):
 
 
 @app.route("/service/request", methods=["POST"])
+@jwt_required
 def create_service_req():
     """
     crea un request de un servicio
@@ -529,7 +538,7 @@ def create_service_req():
     """
 
 
-@app.route("/contract/create", methods=["POST"])
+@app.route("/contract/create", methods=["POST"]) #ready
 @jwt_required
 def create_new_contract():
     """
@@ -575,7 +584,10 @@ def create_new_contract():
     db.session.add(new_contract)
     db.session.commit()
 
-    return jsonify({'Success': 'Contract created'}), 200
+    return jsonify({
+        'msg': 'contract created',
+        'contract': new_contract.serialize()
+    }), 200
 
 
 # this only runs if `$ python src/main.py` is executed

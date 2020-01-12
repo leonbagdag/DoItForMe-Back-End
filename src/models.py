@@ -80,7 +80,7 @@ class Employer(db.Model):
     def serialize(self):
         return {
             'score': self.score,
-            'contracts': list(map(lambda x: dict({**x.serialize(), **x.serialize_provider()}), self.contracts)),
+            'contracts': list(map(lambda x: x.serialize(), self.contracts)),
             'requests': list(map(lambda x: x.serialize(), self.requests)),
             'reviews': list(map(lambda x: x.serialize(), self.reviews)),
         }
@@ -111,7 +111,7 @@ class Provider(db.Model):
     def serialize(self):
         return {
             'score': self.score,
-            'contracts': list(map(lambda x: dict({**x.serialize(), **x.serialize_employer()}), self.contracts)),
+            'contracts': list(map(lambda x: x.serialize(), self.contracts)),
             'offers': list(map(lambda x: x.serialize(), self.offers)),
             'reviews': list(map(lambda x: x.serialize(), self.reviews)),
             'categories': list(map(lambda x: x.serialize(), self.categories))
@@ -148,6 +148,7 @@ class Contract(db.Model):
             'status': self.contract_status,
             'start_date': self.contract_date,
             'end_date': self.contract_end_date,
+            'service_id': self.service_id
         }
     
     def serialize_provider(self):
@@ -207,19 +208,17 @@ class Request(db.Model):
         return {
             'id': self.id,
             'name': self.name,
-            'request_type': self.request_type,
             'description': self.description,
             'date_created': self.creation_date,
             'status': self.service_status,
             'category': self.category.serialize(),
-            'address': dict({
+            'address': {
                 'street': self.street,
                 'home_number': self.home_number,
                 'more_info': self.more_info,
-                'comuna': self.comuna,
-                'region': self.region,
-            }),
-            'contract' : self.contract.serialize(),
+                'comuna': self.comuna.serialize(),
+                'region': self.region
+            }
         }
 
     def serialize_offers(self):
@@ -228,9 +227,10 @@ class Request(db.Model):
     def serialize_employer(self):
         return {'employer': self.employer.serialize_public_info()} #employer who made the request
 
-    def serialize_provider(self):
-        return {'provider': self.provider.serialize_public_info()} #provider who won the request thru offer
-
+    def serialize_contract (self):
+        if self.contract is None:
+            return {'contract': "No contract"}
+        return {'contract': self.contract.serialize()}
 
 class Offer(db.Model):
     __tablename__ = 'offer'
