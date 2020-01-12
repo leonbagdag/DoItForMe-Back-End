@@ -7,7 +7,10 @@ from flask_migrate import Migrate
 from flask_swagger import swagger
 from flask_cors import CORS
 from utils import APIException, generate_sitemap
-from models import db, User, Employer, Provider, Category, Contract, Request, Offer, Review, Region, Comuna
+from models import (
+    db, User, Employer, Provider, Category, Contract, Request, 
+    Offer, Review, Region, Comuna
+)
 from sqlalchemy.exc import IntegrityError
 from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token, get_jwt_identity
@@ -41,28 +44,19 @@ def get_site_conf():
     all_categories = Category.query.all()
     all_regions = Region.query.all()
     response_body = {
-        'start_data': dict({
             'categories': list(map(lambda x: x.serialize(), all_categories)),
             'regions': list(map(lambda x: x.serialize(), all_regions)),
-        })
-    }
-    return jsonify(response_body), 200
-
-
-@app.route('/hello', methods=['POST', 'GET'])
-def handle_hello():
-    response_body = {
-        "hello": "world"
-    }
-
+            'contracts': len(Contract.query.all()),
+            'offers': len(Offer.query.all()),
+            'users': len(User.query.all()),
+        }
     return jsonify(response_body), 200
 
 
 @app.route('/admin/region/create', methods=['POST'])
+@jwt_required
 def create_region():
-    """
-    *PRIVATE ENDPOINT*
-    """
+
     if not request.is_json:
         return jsonify({'Error': 'Missing JSON in request'}), 400
 
@@ -74,26 +68,21 @@ def create_region():
         new_region = Region(name=name)
         db.session.add(new_region)
         db.session.commit()
-        return jsonify({'message': 'created region %s with id: %s' %(new_region.name, new_region.id)}), 201
+        return jsonify({
+            'msg': 'new region crated',
+            'regions': list(map(lambda x: x.serialize(), Region.query.all())),
+        }), 201
         
     except IntegrityError:
         db.session.rollback()
         return jsonify({'Error': 'region alredy exists'}), 400
 
-@app.route('/admin/region', methods=['GET'])
-def all_regions():
-    """
-    *PRIVATE REGION*
-    get all regions stored in database
-    """
-    all_regions = Region.query.all()
-    return jsonify({'regions': list(map(lambda x: x.serialize(), all_regions))}), 200
 
-
-@app.route('/admin/region/<int:reg_id>', methods=['GET', 'PUT', 'DELETE'])
+@app.route('/admin/region/<int:reg_id>', methods=['PUT', 'DELETE'])
+@jwt_required
 def handle_regions(reg_id=None):
     """
-    Get or Edit regions stored in database. This is visible only for de Administrator
+    Edit regions stored in database. This is visible only for de Administrator
     ENDPOINT PRIVADO
     """
     region_query = Region.query.get(reg_id)
@@ -101,17 +90,15 @@ def handle_regions(reg_id=None):
     if region_query is None:
         return jsonify({'Error': 'Region %s not found'}), 404
 
-    if request.method == 'GET': # get 1 region
-        region_query = Region.query.get(reg_id)
-        return jsonify({'region': region_query.serialize()}), 200
-
     if request.method == 'DELETE': # delete 1 Region
         db.session.delete(region_query)
         db.session.commit()
-        response_body = {'message': 'deleted Region: {}'.format(region_query.name)}
-        return jsonify(response_body), 200
+        return jsonify({
+            'msg': 'region deleted',
+            'regions': list(map(lambda x: x.serialize(), Region.query.all()))
+        }), 200
     
-    if request.method == 'PUT': # update Region data, need "name" and "logo" in body req.
+    if request.method == 'PUT': # update Region data
         if not request.is_json:
             return jsonify({'Error': 'Missing JSON in request'}), 400
         
@@ -122,8 +109,10 @@ def handle_regions(reg_id=None):
         try:
             region_query.name = name
             db.session.commit()
-            response_body = {'message': 'category with id: {} updated'.format(id)}
-            return jsonify(response_body), 200
+            return jsonify({
+                'msg': 'region updated',
+                'regions': list(map(lambda x: x.serialize(), Region.query.all()))
+            }), 200
 
         except IntegrityError:
             db.session.rollback()
@@ -132,7 +121,8 @@ def handle_regions(reg_id=None):
     raise APIException("Invalid Method", status_code=400)
 
 
-@app.route('/admin/category/<int:cat_id>', methods=['GET', 'PUT', 'DELETE'])
+@app.route('/admin/category/<int:cat_id>', methods=['PUT', 'DELETE'])
+@jwt_required
 def handle_categories(cat_id=None):
     """
     Get or Edit categories stored in database. This is visible only for de Administrator
@@ -142,14 +132,13 @@ def handle_categories(cat_id=None):
     if category_query is None:
         return jsonify({'Error': 'Category %s not found'}), 404
 
-    if request.method == 'GET': # get 1 category
-        return jsonify(category_query.serialize()), 200
-
     if request.method == 'DELETE': # delete 1 category
         db.session.delete(category_query)
         db.session.commit()
-        response_body = {'message': 'deleted category: {}'.format(category_query.name)}
-        return jsonify(response_body), 200
+        return jsonify({
+            'msg': 'category deleted',
+            'categories': list(map(lambda x: x.serialize(), Category.query.all()))
+        }), 200
     
     if request.method == 'PUT': # update category data, need "name" and "logo" in body req.
         if not request.is_json:
@@ -167,8 +156,10 @@ def handle_categories(cat_id=None):
             category_query.name = name
             category_query.logo = logo
             db.session.commit()
-            response_body = {'message': 'category with id: {} updated'.format(id)}
-            return jsonify(response_body), 200
+            return jsonify({
+                'msg': 'category updated',
+                'categories': list(map(lambda x: x.serialize(), Category.query.all()))
+            }), 200
 
         except IntegrityError:
             db.session.rollback()
@@ -178,6 +169,7 @@ def handle_categories(cat_id=None):
 
 
 @app.route('/admin/category/create', methods = ['POST'])
+@jwt_required
 def create_category():
     """
     create new category as Administrator.
@@ -199,8 +191,10 @@ def create_category():
         new_category = Category(name=name, logo=logo)
         db.session.add(new_category)
         db.session.commit()
-        response_body = {'message': 'created category with id: {}'.format(new_category.id)}
-        return jsonify(response_body), 201
+        return jsonify({
+            'msg': 'category created',
+            'categories': list(map(lambda x: x.serialize(), Category.query.all()))
+        }), 201
         
     except IntegrityError:
         db.session.rollback()
@@ -287,7 +281,6 @@ def user_login():
                 "categories": [],
                 "contracts": [],
                 "offers": [],
-                "requests": [],
                 "reviews": [],
                 "score": 0.0
             }
@@ -338,11 +331,19 @@ def set_user_profile(user_id):
         "comuna": <comuna_id>
         "street": "street",
         "home_number": "home_num",
-        "more_info": "more_info"
+        "more_info": "more_info",
+        "profile_img": "url_to_img"
     }
     return json:
     {
-        "success": "perfil de usuario: id actualizado", 200
+        "fname":"fname",
+        "lname":"lname",
+        "rut": "rut",
+        "comuna": <comuna_id>
+        "street": "street",
+        "home_number": "home_num",
+        "more_info": "more_info",
+        "profile_img": "url_to_img"
     }
     """
     if not request.is_json:
@@ -351,8 +352,9 @@ def set_user_profile(user_id):
     user_query = User.query.get(user_id)
     if user_query is None:
         return jsonify({'Error': 'usuario %s no encontrado' %user_id}), 400
-
-    if user_query.email != get_jwt_identity:
+    
+    print(get_jwt_identity())
+    if user_query.email != get_jwt_identity():
         return jsonify({'Error': 'Access denied'}), 401
     
     body = request.get_json()
@@ -374,10 +376,11 @@ def set_user_profile(user_id):
         user_query.rut = body['rut']
     if 'rut_serial' in body:
         user_query.rut_serial = body['rut_serial']
-
+    if 'profile_img' in body:
+        user_query.profile_img = body['profile_img']
     db.session.commit()
 
-    return jsonify({'success': 'perfil de usuario %s actualizado' %user_id}), 200
+    return jsonify(user_query.serialize()), 200
 
 
 @app.route('/employer/<int:employer_id>', methods=['GET'])
@@ -396,7 +399,7 @@ def get_employer(employer_id):
                 "street": "street"
             },
             "first_name": "fname",
-            "id": 9,
+            "id": id,
             "join_date": "join date",
             "last_name": "lname",
             "profile_img": "url_to_img",
@@ -451,14 +454,10 @@ def update_provider_categories(provider_id):
     requerido:
     {
         "categories": [
-            "id": 1,
-            "id": 2,
-            "id": 3,
+            {"id": 1},
+            {"id": 2},
+            {"id": 3},
         ]
-    }
-    return-json:
-    {
-        "message": "provider <provider_id> updated", 200
     }
     """
     request_body = request.get_json()
@@ -482,7 +481,10 @@ def update_provider_categories(provider_id):
             db.session.commit()
             exist = False
 
-    return jsonify({'message': 'provider {} updated'.format(provider_id)}), 200
+    return jsonify(dict({
+        'Success': 'provider updated',
+        **provider_q.serialize_categories() 
+    })), 200
 
 
 @app.route("/service/request", methods=["POST"])
@@ -497,13 +499,12 @@ def create_service_req():
         "home_number": "home_number_address",
         "more_info": "more info about home",
         "comuna": <comuna_id>,
-        
-
     }
     """
 
 
 @app.route("/contract/create", methods=["POST"])
+@jwt_required
 def create_new_contract():
     """
     crea un nuevo contrato entre un empleador y un proveedor.
@@ -538,6 +539,8 @@ def create_new_contract():
     employer_q = Employer.query.get(employer)
     if employer_q is None:
         return jsonify({'Error', 'employer %s not found' %employer}), 404
+    if employer_q.user.email != get_jwt_identity():
+        return jsonify({'Error', 'Only employer can create a new contract'}), 401
     service_q = Request.query.get(service)
     if service_q is None:
         return jsonify({'Error', 'service %s not found' %service}), 404

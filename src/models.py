@@ -98,7 +98,6 @@ class Provider(db.Model):
     categories = db.relationship('Category', secondary=provider_category, back_populates='providers', lazy=True) #many to many with categories
     contracts = db.relationship('Contract', back_populates='provider', lazy=True)
     offers = db.relationship('Offer', back_populates='provider', lazy=True)
-    requests = db.relationship('Request', back_populates='provider', lazy=True)
     reviews = db.relationship('Review', back_populates='provider', lazy=True)
 
     def __repr__(self):
@@ -110,14 +109,13 @@ class Provider(db.Model):
         }
 
     def serialize(self):
-        return dict({
+        return {
             'score': self.score,
             'contracts': list(map(lambda x: dict({**x.serialize(), **x.serialize_employer()}), self.contracts)),
             'offers': list(map(lambda x: x.serialize(), self.offers)),
-            'requests': list(map(lambda x: x.serialize(), self.requests)),
-            'reviews': list(map(lambda x: x.serialize(), self.reviews))},
-            **self.serialize_categories()
-        )
+            'reviews': list(map(lambda x: x.serialize(), self.reviews)),
+            'categories': list(map(lambda x: x.serialize(), self.categories))
+        }
 
     def serialize_public_info(self):
         return dict({
@@ -165,7 +163,7 @@ class Contract(db.Model):
 class Category(db.Model):
     __tablename__ = 'category'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(20), unique=True, nullable=False)
+    name = db.Column(db.String(60), unique=True, nullable=False)
     logo = db.Column(db.String(60), unique=True, nullable=False) #From Font-awsome
 
     providers = db.relationship('Provider', secondary=provider_category, back_populates='categories', lazy=True) #many to many with provider
@@ -193,13 +191,11 @@ class Request(db.Model):
     creation_date = db.Column(db.DateTime, default=datetime.now)
     service_status = db.Column(db.String(20), default='active') #options are: active, paused, closed
     employer_id = db.Column(db.Integer, db.ForeignKey('employer.id'))
-    provider_id = db.Column(db.Integer, db.ForeignKey('provider.id')) # si es una solicitud directa, se debe especificar quien es el proveedor
     category_id = db.Column(db.Integer, db.ForeignKey('category.id'))
     comuna_id = db.Column(db.Integer, db.ForeignKey('comuna.id'))
 
     employer = db.relationship('Employer', back_populates='requests', uselist=False, lazy=True)
     category = db.relationship('Category', back_populates='requests', uselist=False, lazy=True)
-    provider = db.relationship('Provider', back_populates='requests', uselist=False, lazy=True)
     offers = db.relationship('Offer', back_populates='request', lazy=True)
     contract = db.relationship('Contract', back_populates='request', uselist=False, lazy=True)
     comuna = db.relationship('Comuna', back_populates='requests', uselist=False, lazy=True)
@@ -311,10 +307,8 @@ class Region(db.Model):
         return {
             'id': self.id,
             'name': self.name,
+            'comunas': list(map(lambda x: x.serialize(), self.comunas))
         }
-    
-    def serialize_comunas(self):
-        return {'comunas': list(map(lambda x: x.serialize(), self.comunas))}
 
 
 class Comuna(db.Model):
@@ -334,7 +328,6 @@ class Comuna(db.Model):
         return {
             'id': self.id,
             'name': self.name,
-            'region': self.region_id
         }
     
     def serialize_region(self):
