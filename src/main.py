@@ -1,6 +1,7 @@
 """
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
+from functools import wraps
 import os, re
 from flask import Flask, request, jsonify, url_for
 from flask_migrate import Migrate
@@ -13,7 +14,8 @@ from models import (
 )
 from sqlalchemy.exc import IntegrityError
 from flask_jwt_extended import (
-    JWTManager, jwt_required, create_access_token, get_jwt_identity
+    JWTManager, jwt_required, create_access_token, get_jwt_identity, 
+    verify_jwt_in_request, get_jwt_claims
 )
 
 app = Flask(__name__)
@@ -26,6 +28,30 @@ MIGRATE = Migrate(app, db)
 db.init_app(app)
 CORS(app)
 
+
+def jwt_admin_required(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        verify_jwt_in_request()
+        claims = get_jwt_claims()
+        if claims['role'] != 'admin':
+            return jsonify({'msg': 'Admins Only'}), 403
+        else:
+            return fn(*args, **kwargs)
+    return wrapper
+
+
+@jwt.user_claims_loader
+def add_claims_to_access_token(user):
+    if user.role == 'admin':
+        return {'role': 'admin'}
+    else:
+        return {'role': 'client'}
+
+
+@jwt.user_identity_loader
+def user_identity_lookup(user):
+    return user.email
 
 # Handle/serialize errors like a JSON object
 @app.errorhandler(APIException)
@@ -54,7 +80,7 @@ def get_site_conf():
 
 
 @app.route('/admin/region/create', methods=['POST'])
-@jwt_required
+@jwt_admin_required
 def create_region():
 
     if not request.is_json:
@@ -79,7 +105,7 @@ def create_region():
 
 
 @app.route('/admin/region/<int:reg_id>', methods=['PUT', 'DELETE'])
-@jwt_required
+@jwt_admin_required
 def handle_regions(reg_id=None):
     """
     Edit regions stored in database. This is visible only for de Administrator
@@ -300,7 +326,7 @@ def user_login():
     user_query = User.query.filter_by(email=email).first()
     if user_query is None:
         return jsonify({'Error': "email: '%s' not found" %email}), 404
-    access_token = create_access_token(identity=email)
+    access_token = create_access_token(identity=user_query)
 
     if user_query.password == password:
         data = {
