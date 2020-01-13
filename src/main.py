@@ -656,7 +656,7 @@ def create_new_contract():
 
     new_contract = Contract(employer=employer_q, provider=provider_q, request=service_q)
     db.session.add(new_contract)
-    db.session.commit() #commit
+    db.session.commit() #commit2
 
     return jsonify({
         'msg': 'contract created',
