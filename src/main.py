@@ -60,7 +60,6 @@ def handle_invalid_usage(error):
     return jsonify(error.to_dict()), error.status_code
 
 
-# generate sitemap with all your endpoints
 @app.route('/')
 def get_site_conf():
     """
@@ -115,7 +114,7 @@ def handle_regions(reg_id=None):
     region_query = Region.query.get(reg_id)
 
     if region_query is None:
-        return jsonify({'Error': 'Region %s not found'}), 404
+        return jsonify({'Error': 'Region %s not found' %reg_id}), 404
 
     if request.method == 'DELETE': # delete 1 Region
         db.session.delete(region_query)
@@ -144,6 +143,81 @@ def handle_regions(reg_id=None):
         except IntegrityError:
             db.session.rollback()
             return jsonify({'Error': 'Region name alredy exists'}), 400
+
+    raise APIException("Invalid Method", status_code=400)
+
+
+@app.route('/admin/comuna/create', methods=['POST']) #ready!
+@jwt_admin_required
+def create_comuna():
+    
+    if not request.is_json:
+        return jsonify({'Error': 'Missing JSON in request'}), 400
+
+    name = request.json.get('name')
+    if not name:
+        return jsonify({'Error': 'Missing name parameter in request'}), 400
+    region_name = request.json.get('region')
+    if not region_name:
+        return jsonify({'Error': 'Missing region parameter in request'}), 400
+
+    region_query = Region.query.filter_by(name=region_name).first()
+    if region_query is None:
+        return jsonify({'Error': 'Region %s not found' %region_name}), 404
+
+    try:
+        new_comuna = Comuna(name=name, region=region_query)
+        db.session.add(new_comuna)
+        db.session.commit()
+        return jsonify({
+            'msg': 'new comuna crated',
+            'regions': list(map(lambda x: x.serialize(), Region.query.all()))
+        }), 201
+        
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify({'Error': 'comuna alredy exists'}), 400
+
+
+@app.route('/admin/comuna/<int:comuna_id>', methods=['PUT', 'DELETE']) #ready!
+@jwt_admin_required
+def handle_comunas(comuna_id=None):
+    """
+    Edit comunas stored in database. This is visible only for de Administrator
+    ENDPOINT PRIVADO
+    """
+    comuna_query = Comuna.query.get(reg_id)
+
+    if comuna_query is None:
+        return jsonify({'Error': 'Comuna %s not found'} %comuna_id), 404
+
+    if request.method == 'DELETE': # delete 1 comuna
+        db.session.delete(comuna_query)
+        db.session.commit()
+        return jsonify({
+            'msg': 'comuna deleted',
+            'regions': list(map(lambda x: x.serialize(), Region.query.all()))
+        }), 200
+    
+    if request.method == 'PUT': # update comuna data
+        if not request.is_json:
+            return jsonify({'Error': 'Missing JSON in request'}), 400
+        
+        name = request.json.get('name')
+        if not name:
+            return jsonify({'Error': 'Missing name parameter in request'}), 400
+
+        try:
+            comuna_query.name = name
+            db.session.commit()
+            return jsonify({
+                'msg': 'comuna updated',
+                'regions': list(map(lambda x: x.serialize(), Region.query.all()))
+            }), 200
+
+        except IntegrityError:
+            db.session.rollback()
+            return jsonify({'Error': 'Comuna name alredy exists'}), 400
 
     raise APIException("Invalid Method", status_code=400)
 
