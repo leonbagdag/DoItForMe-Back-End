@@ -74,6 +74,7 @@ def get_site_conf():
             'regions': list(map(lambda x: x.serialize(), all_regions)),
             'contracts': Contract.query.count(),
             'offers': Offer.query.count(),
+            'requests': Request.query.count(),
             'users': User.query.count(),
         }
     return jsonify(response_body), 200
@@ -702,8 +703,10 @@ def create_new_contract():
     employer_q = Employer.query.get(employer)
     if employer_q is None:
         return jsonify({'Error', 'employer %s not found' %employer}), 404
+
     if employer_q.user.email != get_jwt_identity():
-        return jsonify({'Error', 'Only employer can create a new contract'}), 401
+        return jsonify({'Error', 'Access denied'}), 401 #Only a employer can create a contract
+
     service_q = Request.query.get(service)
     if service_q is None:
         return jsonify({'Error', 'service %s not found' %service}), 404
@@ -718,14 +721,47 @@ def create_new_contract():
     }), 200
 
 
+@app.route("/offer/create", methods=['POST'])
+@jwt_required
+def create_new_offer():
+    """
+    required:
+    {
+        "description": "description" #is optional
+        "provider": <provider_id>
+        "request": <request_id>
+    }
+    """
+    if not request.is_json:
+        return jsonify({'Error': 'missing JSON in request'}), 400
+
+    provider_id = request.json.get('provider', None)
+    if provider_id is None:
+        return jsonify({'Error': 'provider ID not found in request'}), 400
+    provider_q = Provider.query.get(provider_id)
+    if provider_q is None:
+        return jsonify({'Error': 'Provider %s not found' %provider_id}), 404
+    
+    request_id = request.json.get('request', None)
+    if request_id is None:
+        return jsonify({'Error': 'request ID not found in request'})
+    request_q = Request.query.get(request_id)
+    if request_q is None:
+        return jsonify({'Error', 'request %s not found' %request_id}), 404
+
+    new_offer = Offer(
+        description = request.json.get('description', None),
+        provider = provider_q,
+        request = request_q
+    )
+
+
 """
 What's missing:
-    1) endpoint for creating a new service request
     2) endpoint for update a contract (only for employer user)
     3) endpoint for update or delete a service request
     4) endpoint for get contract info as a provider
     5) endpoint for get contract info as a employer
-    6) endpoint for create a offer
     7) endpoint for get all the offers for a specific request (as a employer)
     8) endpoint for get all the offers of a provider
     7) endpoint for update or delete a offer
