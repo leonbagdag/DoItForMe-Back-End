@@ -72,9 +72,9 @@ def get_site_conf():
     response_body = {
             'categories': list(map(lambda x: x.serialize(), all_categories)),
             'regions': list(map(lambda x: x.serialize(), all_regions)),
-            'contracts': len(Contract.query.all()),
-            'offers': len(Offer.query.all()),
-            'users': len(User.query.all()),
+            'contracts': Contract.query.count(),
+            'offers': Offer.query.count(),
+            'users': User.query.count(),
         }
     return jsonify(response_body), 200
 
@@ -608,8 +608,62 @@ def create_service_req():
         "home_number": "home_number_address",
         "more_info": "more info about home",
         "comuna": <comuna_id>,
+        "employer" <employer_id>,
+        "category" <category_id
     }
     """
+    if not request.is_json:
+        return jsonify({'Error': 'missing JSON in request'}), 400
+    body = request.get_json()
+    if 'name' not in body:
+        return jsonify({'Error', 'name parameter not found in request body'}), 400
+    if 'description' not in body:
+        return jsonify({'Error': 'description parameter not found in request body'}), 400
+    if 'street' not in body:
+        return jsonify({'Error': 'street parameter not found in request body'}), 400
+    if 'home_number' not in body:
+        return jsonify({'Error': 'home_number parameter not found in reuqest body'}), 400
+    if 'comuna' not in body:
+        return jsonify({'Error': 'comuna ID not found in request body'}), 400
+    if 'employer' not in body:
+        return jsonify({'Error': 'employer ID not found in request body'}), 400
+    if 'category' not in body:
+        return jsonify({'Error': 'category ID not found in request body'}), 400
+
+    comuna_q = Comuna.query.get(body['comuna'])
+    if comuna_q is None:
+        return jsonify({'Error': 'Comuna %s not found' %body['comuna']}), 404
+    
+    employer_q = Employer.query.get(body['employer'])
+    if employer_q is None:
+        return jsonify({'Error': 'Employer %s not found' %body['employer']}), 404
+    
+    category_q = Category.query.get(body['category'])
+    if category_q is None:
+        return jsonify({'Error': 'Category %s not found'} %body['category']), 404
+
+    if employer_q.user.email != get_jwt_identity():
+        print(employer_q.user.email)
+        print(get_jwt_identity)
+        return jsonify({'Error': 'Only Employer can post a new service request'}), 401
+
+    new_request = Request(
+        name = body['name'],
+        description = body['description'],
+        street = body['street'],
+        home_number = body['home_number'],
+        more_info = body['more_info'],
+        employer = employer_q,
+        category = category_q,
+        comuna = comuna_q
+    )
+    db.session.add(new_request)
+    db.session.commit()
+
+    return jsonify({
+        'Success': 'new service request created',
+        'service_req': new_request.serialize()
+    }), 200
 
 
 @app.route("/contract/create", methods=["POST"]) #ready

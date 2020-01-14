@@ -184,11 +184,11 @@ class Category(db.Model):
 class Request(db.Model):
     __tablename__ = 'request'
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(20), nullable=False)
-    description = db.Column(db.String(20), nullable=False)
-    street = db.Column(db.String(20), nullable=False)
+    name = db.Column(db.String(60), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    street = db.Column(db.String(60), nullable=False)
     home_number = db.Column(db.String(20), nullable=False)
-    more_info = db.Column(db.String(20))
+    more_info = db.Column(db.String(60))
     creation_date = db.Column(db.DateTime, default=datetime.now)
     service_status = db.Column(db.String(20), default='active') #options are: active, paused, closed
     employer_id = db.Column(db.Integer, db.ForeignKey('employer.id'))
@@ -217,7 +217,6 @@ class Request(db.Model):
                 'home_number': self.home_number,
                 'more_info': self.more_info,
                 'comuna': self.comuna.serialize(),
-                'region': self.region
             }
         }
 
@@ -237,6 +236,7 @@ class Offer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     offer_date = db.Column(db.DateTime, default=datetime.now)
     description = db.Column(db.Text)
+    status = db.Column(db.String(30), default='active')
     provider_id = db.Column(db.Integer, db.ForeignKey('provider.id'))
     request_id = db.Column(db.Integer, db.ForeignKey('request.id'))
 
