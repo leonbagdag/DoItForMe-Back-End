@@ -74,10 +74,11 @@ def get_site_conf():
     else:
         logged = False
     
-    all_categories = Category.query.all()
-    all_regions = Region.query.all()
+    top_categories = Category.query.all()
+    top_categories.sort(reverse=True, key=lambda x: len(x.requests))
+    top_categories[4:] = []
     response_body = {
-            'categories': list(map(lambda x: dict({**x.serialize(), 'requests': len(x.requests)}), all_categories)),
+            'top_categories': list(map(lambda x: dict({**x.serialize(), 'requests': len(x.requests)}), top_categories)),
             'contracts': Contract.query.count(),
             'offers': Offer.query.count(),
             'requests': Request.query.count(),
