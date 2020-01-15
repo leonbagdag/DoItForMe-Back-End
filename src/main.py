@@ -401,9 +401,9 @@ def user_login():
     return jsonify({'Error': 'wrong password, try again...'}), 404
 
 
-@app.route('/user/profile/<int:user_id>', methods=['PUT']) #ready
+@app.route('/user/profile', methods=['PUT']) #ready
 @jwt_required
-def set_user_profile(user_id):
+def set_user_profile():
     """
     actualiza los datos personales del usuario en la bd
     *PRIVATE ENDPOINT*
@@ -437,14 +437,8 @@ def set_user_profile(user_id):
     if not request.is_json:
         return jsonify({'Error': 'Missing JSON in request'}), 400
 
-    user_query = User.query.get(user_id)
-    if user_query is None:
-        return jsonify({'Error': 'usuario %s no encontrado' %user_id}), 400
-    
-    print(get_jwt_identity())
-    if user_query.email != get_jwt_identity():
-        return jsonify({'Error': 'Access denied'}), 401
-    
+    user_query = User.query.filter(User.email == get_jwt_identity()).first()
+
     body = request.get_json()
 
     if body is None:
@@ -479,9 +473,9 @@ def set_user_profile(user_id):
     )}), 200
 
 
-@app.route('/provider/categories/<int:provider_id>', methods=['PUT']) #ready
+@app.route('/provider/categories', methods=['PUT']) #ready
 @jwt_required
-def update_provider_categories(provider_id):
+def update_provider_categories():
     """
     Configur las categorias favoritas del usuario como empleador
     *PRIVATE ENDPOINT*
@@ -498,10 +492,11 @@ def update_provider_categories(provider_id):
         return jsonify({'Error': 'Missing JSON in request'}), 400
 
     request_body = request.get_json()
+    provider_id = User.query.filter(User.email == get_jwt_identity()).first().id
     provider_q = Provider.query.get(provider_id)
 
     if provider_q is None:
-        return jsonify({'Error': 'proveedor %s no existe' %provider_id}), 400
+        return jsonify({'Error': 'proveedor no existe'}), 400
 
     # se agregan categorias entrantes
     for c in request_body['categories']:  # recorre la lista
@@ -527,7 +522,7 @@ def update_provider_categories(provider_id):
 
 @app.route('/service-request', methods=['GET']) #ready
 @jwt_required
-def get_employer():
+def get_service_requests():
     """
     consulta para obtener los servicios que cumplan con ciertos filtros
     *ENDPOINT PRIVADO*
@@ -559,7 +554,7 @@ def get_employer():
     f_requests = Request.query.filter(
         Request.category_id.in_(cat_filter),
         Request.comuna_id == com_filter,
-        #Request.employer_id != emp_filter
+        #Request.employer_id != emp_filter #evita que el usuario reciba cm respuesta servicios solicitados por el mismo
     ).all()
 
     return jsonify({"services": list(map(lambda x: x.serialize(), f_requests))}), 200
@@ -567,7 +562,7 @@ def get_employer():
 
 @app.route("/service-request/create", methods=["POST"])
 @jwt_required
-def create_service_req():
+def create_service_request():
     """
     crea un request de un servicio
     requerido:
@@ -634,6 +629,15 @@ def create_service_req():
         'Success': 'new service request created',
         'service_req': new_request.serialize()
     }), 200
+
+
+@app.route("/contract", methods=["GET"])
+@jwt_required
+def get_contract():
+    """
+    devuelve los contratos pertenecientes al usuario que hace la consulta.
+    devuelve contratos como 
+    """
 
 
 @app.route("/contract/create", methods=["POST"]) #ready
