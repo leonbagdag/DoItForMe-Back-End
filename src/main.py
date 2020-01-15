@@ -16,7 +16,7 @@ from models import (
 from sqlalchemy.exc import IntegrityError
 from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token, get_jwt_identity, 
-    verify_jwt_in_request, get_jwt_claims, get_raw_jwt
+    verify_jwt_in_request, get_jwt_claims, get_raw_jwt, jwt_optional
 )
 
 app = Flask(__name__)
@@ -61,12 +61,19 @@ def handle_invalid_usage(error):
 
 
 @app.route('/')
+@jwt_optional
 def get_site_conf():
     """
     This is a public endpoint. Returns all categories, stats and configurations needed for the front-end app.
     this will be requested for the web app to configure at the start.
     * PUBLIC ENDPOINT *
     """
+    current_user = get_jwt_identity()
+    if current_user:
+        logged = True
+    else:
+        logged = False
+    
     all_categories = Category.query.all()
     all_regions = Region.query.all()
     response_body = {
@@ -75,6 +82,7 @@ def get_site_conf():
             'offers': Offer.query.count(),
             'requests': Request.query.count(),
             'users': User.query.count(),
+            'logged': logged
         }
     return jsonify(response_body), 200
 
@@ -437,7 +445,7 @@ def set_user_profile():
     if not request.is_json:
         return jsonify({'Error': 'Missing JSON in request'}), 400
 
-    user_query = User.query.filter(User.email == get_jwt_identity()).first()
+    current_user = User.query.filter(User.email == get_jwt_identity()).first()
 
     body = request.get_json()
 
@@ -445,31 +453,31 @@ def set_user_profile():
         return jsonify({'Error': 'no se encuentra datos JSON en cuerpo de request'}), 400
 
     if 'fname' in body:
-        user_query.fname = body['fname']
+        current_user.fname = body['fname']
     if 'lname' in body:
-        user_query.lname = body['lname']
+        current_user.lname = body['lname']
     if 'street' in body:
-        user_query.street = body['street']
+        current_user.street = body['street']
     if 'home_number' in body:
-        user_query.home_number = body['home_number']
+        current_user.home_number = body['home_number']
     if 'more_info' in body:
-        user_query.more_info = body['more_info']
+        current_user.more_info = body['more_info']
     if 'rut' in body:
-        user_query.rut = body['rut']
+        current_user.rut = body['rut']
     if 'rut_serial' in body:
-        user_query.rut_serial = body['rut_serial']
+        current_user.rut_serial = body['rut_serial']
     if 'profile_img' in body:
-        user_query.profile_img = body['profile_img']
+        current_user.profile_img = body['profile_img']
     if 'comuna' in body:
         comuna_q = Comuna.query.get(body['comuna'])
         if comuna_q is None:
             raise APIException("Comuna %s not found" %body['comuna'], status_code=404)
-        user_query.comuna = comuna_q
+        current_user.comuna = comuna_q
     db.session.commit()
 
     return jsonify({'user': dict(
-        **user_query.serialize(),
-        **user_query.serialize_private_info()
+        **current_user.serialize(),
+        **current_user.serialize_private_info()
     )}), 200
 
 
@@ -492,7 +500,7 @@ def update_provider_categories():
         return jsonify({'Error': 'Missing JSON in request'}), 400
 
     request_body = request.get_json()
-    provider_id = User.query.filter(User.email == get_jwt_identity()).first().id
+    provider_id = User.query.filter(User.email == get_jwt_identity()).first().id  #ID del provedor haciendo la consulta 
     provider_q = Provider.query.get(provider_id)
 
     if provider_q is None:
@@ -531,21 +539,24 @@ def get_service_requests():
     return json:
     {
     services	
-        0	
-            address	{…}
-            category	{…}
-            date_created	"Mon, 13 Jan 2020 22:59:46 GMT"
-            description	""
-            employer	{…}
-            id	1
-            name	"Reparar encimera"
-            status	"active"
+        [	
+           { 
+                "address":	{…}
+                "category"	:{…}
+                "date_created":	"Mon, 13 Jan 2020 22:59:46 GMT"
+                "description":	""
+                "employer":	{…}
+                "id":	1
+                "name":	"Reparar encimera"
+                "status":	"active"
+            }
+        ]
     }
     """
     user_email = get_jwt_identity()
     cat_filter = []
     com_filter = int(request.args.get('comuna'))
-    emp_filter = User.query.filter(User.email == user_email).first().id
+    emp_filter = User.query.filter(User.email == user_email).first().id #evita que se den como resultados servicios solicitados por el empleador haciendo la consulta actual
 
     for arg in request.args:
         if 'cat' in arg:
@@ -554,13 +565,13 @@ def get_service_requests():
     f_requests = Request.query.filter(
         Request.category_id.in_(cat_filter),
         Request.comuna_id == com_filter,
-        #Request.employer_id != emp_filter #evita que el usuario reciba cm respuesta servicios solicitados por el mismo
+        Request.employer_id != emp_filter #evita que el usuario reciba cm respuesta servicios solicitados por el mismo
     ).all()
 
     return jsonify({"services": list(map(lambda x: x.serialize(), f_requests))}), 200
 
 
-@app.route("/service-request/create", methods=["POST"])
+@app.route("/service-request/create", methods=["POST"]) #ready
 @jwt_required
 def create_service_request():
     """
@@ -573,10 +584,11 @@ def create_service_request():
         "home_number": "home_number_address",
         "more_info": "more info about home",
         "comuna": <comuna_id>,
-        "employer" <employer_id>,
         "category" <category_id
     }
     """
+    current_user = User.query.filter(User.email == get_jwt_identity()).first()
+
     if not request.is_json:
         return jsonify({'Error': 'missing JSON in request'}), 400
     body = request.get_json()
@@ -590,8 +602,6 @@ def create_service_request():
         return jsonify({'Error': 'home_number parameter not found in reuqest body'}), 400
     if 'comuna' not in body:
         return jsonify({'Error': 'comuna ID not found in request body'}), 400
-    if 'employer' not in body:
-        return jsonify({'Error': 'employer ID not found in request body'}), 400
     if 'category' not in body:
         return jsonify({'Error': 'category ID not found in request body'}), 400
 
@@ -599,18 +609,9 @@ def create_service_request():
     if comuna_q is None:
         return jsonify({'Error': 'Comuna %s not found' %body['comuna']}), 404
     
-    employer_q = Employer.query.get(body['employer'])
-    if employer_q is None:
-        return jsonify({'Error': 'Employer %s not found' %body['employer']}), 404
-    
     category_q = Category.query.get(body['category'])
     if category_q is None:
         return jsonify({'Error': 'Category %s not found'} %body['category']), 404
-
-    if employer_q.user.email != get_jwt_identity():
-        print(employer_q.user.email)
-        print(get_jwt_identity)
-        return jsonify({'Error': 'Only Employer can post a new service request'}), 401
 
     new_request = Request(
         name = body['name'],
@@ -618,7 +619,7 @@ def create_service_request():
         street = body['street'],
         home_number = body['home_number'],
         more_info = body['more_info'],
-        employer = employer_q,
+        employer = Employer.query.get(current_user.id), #Se considera al current_user como empleador, ya que el empleador es el unico que puede solicitar un servicio.
         category = category_q,
         comuna = comuna_q
     )
@@ -631,7 +632,7 @@ def create_service_request():
     }), 200
 
 
-@app.route("/contract", methods=["GET"])
+@app.route("/contract", methods=["GET"]) #ready
 @jwt_required
 def get_contract():
     """
@@ -649,7 +650,6 @@ def create_new_contract():
     requerido:
     {
         "provider": provider_id,
-        "employer": employer_id,
         "service": service_req_id
     }
     return-json:
@@ -660,12 +660,12 @@ def create_new_contract():
     if not request.is_json:
         return jsonify({'Error': 'Missing JSON in request'}), 400
 
+    current_user = User.query.filter(User.email == get_jwt_identity()).first()
+
     provider = request.json.get('provider', None)
     if provider is None:
         return jsonify({'Error': 'Missing provider id in body'}), 400
-    employer = request.json.get('employer', None)
-    if employer is None:
-        return jsonify({'Error': 'Missing provider id in body'}), 400
+
     service = request.json.get('service', None)
     if service is None:
         return jsonify({'Error': 'Missing service id in body'}), 400
@@ -673,18 +673,15 @@ def create_new_contract():
     provider_q = Provider.query.get(provider)
     if provider_q is None:
         return jsonify({'Error', 'provider %s not found' %provider}), 404
-    employer_q = Employer.query.get(employer)
-    if employer_q is None:
-        return jsonify({'Error', 'employer %s not found' %employer}), 404
 
-    if employer_q.user.email != get_jwt_identity():
-        return jsonify({'Error', 'Access denied'}), 401 #Only a employer can create a contract
+    if provider_q.id == current_user.id:
+        return jsonify({'Error': 'proveedor no puede crear un contrato'}), 401
 
     service_q = Request.query.get(service)
     if service_q is None:
         return jsonify({'Error', 'service %s not found' %service}), 404
 
-    new_contract = Contract(employer=employer_q, provider=provider_q, request=service_q)
+    new_contract = Contract(employer=Employer.query.get(current_user.id), provider=provider_q, request=service_q) #Se considera empleador al current_user, ya que solo el empleador puede crear un contrato
     db.session.add(new_contract)
     db.session.commit() #commit3
 
@@ -694,26 +691,20 @@ def create_new_contract():
     }), 200
 
 
-@app.route("/offer/create", methods=['POST'])
+@app.route("/offer/create", methods=['POST']) #ready
 @jwt_required
 def create_new_offer():
     """
     required:
     {
         "description": "description" #is optional
-        "provider": <provider_id>
         "request": <request_id>
     }
     """
     if not request.is_json:
         return jsonify({'Error': 'missing JSON in request'}), 400
 
-    provider_id = request.json.get('provider', None)
-    if provider_id is None:
-        return jsonify({'Error': 'provider ID not found in request'}), 400
-    provider_q = Provider.query.get(provider_id)
-    if provider_q is None:
-        return jsonify({'Error': 'Provider %s not found' %provider_id}), 404
+    current_user = User.query.filter(User.email = get_jwt_identity()).first()
     
     request_id = request.json.get('request', None)
     if request_id is None:
@@ -724,14 +715,13 @@ def create_new_offer():
 
     new_offer = Offer(
         description = request.json.get('description', None),
-        provider = provider_q,
+        provider = Provider.query.get(current_user.id), #Usuario haciendo la consulta se considera proveedor, ya que está creando una oferta de servicio
         request = request_q
     )
 
 
 """
 What's missing:
-    2) endpoint for update a contract (only for employer user)
     3) endpoint for update or delete a service request
     4) endpoint for get contract info as a provider
     5) endpoint for get contract info as a employer
