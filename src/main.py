@@ -704,7 +704,7 @@ def create_new_offer():
     if not request.is_json:
         return jsonify({'Error': 'missing JSON in request'}), 400
 
-    current_user = User.query.filter(User.email = get_jwt_identity()).first()
+    current_user = User.query.filter(User.email == get_jwt_identity()).first()
     
     request_id = request.json.get('request', None)
     if request_id is None:
