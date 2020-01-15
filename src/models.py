@@ -42,12 +42,6 @@ class User(db.Model):
             'profile_img': self.profile_img,
             'first_name': self.fname,
             'last_name': self.lname,
-            'address': dict({
-                'street': self.street,
-                'home_number': self.home_number,
-                'more_info': self.more_info,
-                'comuna': self.comuna_id
-            })
         }
 
     def serialize_private_info(self):
@@ -55,6 +49,12 @@ class User(db.Model):
             'email': self.email,
             'rut': self.rut,
             'serial': self.rut_serial,
+            'address': {
+                'street': self.street,
+                'home_number': self.home_number,
+                'more_info': self.more_info,
+                'comuna': self.comuna_id
+            }
         }
 
     def serialize_provider_activity(self):
@@ -202,7 +202,7 @@ class Request(db.Model):
     comuna = db.relationship('Comuna', back_populates='requests', uselist=False, lazy=True)
 
     def __repr__(self):
-        return '<Request %r>' % self.i
+        return '<Request %r>' % self.id
 
     def serialize(self):
         return {
@@ -216,15 +216,13 @@ class Request(db.Model):
                 'street': self.street,
                 'home_number': self.home_number,
                 'more_info': self.more_info,
-                'comuna': self.comuna.serialize(),
-            }
+                'comuna': self.comuna.serialize()
+            },
+            'employer': self.employer.serialize_public_info()
         }
 
     def serialize_offers(self):
         return {'offers': list(map(lambda x: x.serialize(), self.offers))}
-
-    def serialize_employer(self):
-        return {'employer': self.employer.serialize_public_info()} #employer who made the request
 
     def serialize_contract (self):
         if self.contract is None:
@@ -307,6 +305,10 @@ class Region(db.Model):
         return {
             'id': self.id,
             'name': self.name,
+        }
+    
+    def serialize_comunas(self):
+        return {
             'comunas': list(map(lambda x: x.serialize(), self.comunas))
         }
 

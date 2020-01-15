@@ -70,8 +70,7 @@ def get_site_conf():
     all_categories = Category.query.all()
     all_regions = Region.query.all()
     response_body = {
-            'categories': list(map(lambda x: x.serialize(), all_categories)),
-            'regions': list(map(lambda x: x.serialize(), all_regions)),
+            'categories': list(map(lambda x: dict({**x.serialize(), 'requests': len(x.requests)}), all_categories)),
             'contracts': Contract.query.count(),
             'offers': Offer.query.count(),
             'requests': Request.query.count(),
@@ -362,30 +361,16 @@ def user_login():
         "msg": "success",
         "user": {
             "address": {
-                "comuna": "comuna",
+                "comuna": <comuna_id>,
                 "home_number": "home_num",
                 "more_info": "more_info",
-                "region": "region",
                 "street": "street"
-            },
-            "employer": {
-                "contracts": [],
-                "requests": [],
-                "reviews": [],
-                "score": 0.0
             },
             "first_name": "fname",
             "id": 9,
             "join_date": "since",
             "last_name": "lname",
             "profile_img": "link_to_img",
-            "provider": {
-                "categories": [],
-                "contracts": [],
-                "offers": [],
-                "reviews": [],
-                "score": 0.0
-            }
         }
     }
     """
@@ -407,19 +392,16 @@ def user_login():
     if user_query.password == password:
         data = {
             'access_token': access_token,
-            'user': dict({
-                **user_query.serialize(),
-                **user_query.serialize_provider_activity(),
-                **user_query.serialize_employer_activity()
-            }),
-            'msg': 'success'
+            'user': user_query.serialize(),
+            'msg': 'success',
+            'logged': True
         }
         return jsonify(data), 200
 
     return jsonify({'Error': 'wrong password, try again...'}), 404
 
 
-@app.route('/user/<int:user_id>/profile', methods=['PUT']) #ready
+@app.route('/user/profile/<int:user_id>', methods=['PUT']) #ready
 @jwt_required
 def set_user_profile(user_id):
     """
@@ -430,7 +412,8 @@ def set_user_profile(user_id):
         "fname":"fname",
         "lname":"lname",
         "rut": "rut",
-        "comuna": <comuna_id>
+        "rut_serial": "rut serial",
+        "comuna": <comuna_id>,
         "street": "street",
         "home_number": "home_num",
         "more_info": "more_info",
@@ -438,14 +421,17 @@ def set_user_profile(user_id):
     }
     return json:
     {
-        "fname":"fname",
-        "lname":"lname",
-        "rut": "rut",
-        "comuna": <comuna_id>
-        "street": "street",
-        "home_number": "home_num",
-        "more_info": "more_info",
-        "profile_img": "url_to_img"
+        "id": <user_id>,
+        "join_date": "date",
+        "profile_img": "url_to_img",
+        "first_name": "fname",
+        "last_name": "lname,
+        "address": {
+            "street": "street",
+            "home_number": "home_number",
+            "more_info": "more_info",
+            "comuna": <comuna_id>
+        }
     }
     """
     if not request.is_json:
@@ -480,77 +466,20 @@ def set_user_profile(user_id):
         user_query.rut_serial = body['rut_serial']
     if 'profile_img' in body:
         user_query.profile_img = body['profile_img']
+    if 'comuna' in body:
+        comuna_q = Comuna.query.get(body['comuna'])
+        if comuna_q is None:
+            raise APIException("Comuna %s not found" %body['comuna'], status_code=404)
+        user_query.comuna = comuna_q
     db.session.commit()
 
-    return jsonify(user_query.serialize()), 200
+    return jsonify({'user': dict(
+        **user_query.serialize(),
+        **user_query.serialize_private_info()
+    )}), 200
 
 
-@app.route('/employer/<int:employer_id>', methods=['GET']) #ready
-@jwt_required
-def get_employer(employer_id):
-    """
-    consulta publica sobre un empleador
-    *ENDPOINT PRIVADO*
-    return json:
-    {
-        "employer": {
-            "address": {
-                "comuna": "comuna",
-                "home_number": "home_num",
-                "more_info": "more_info",
-                "region": "Region",
-                "street": "street"
-            },
-            "first_name": "fname",
-            "id": id,
-            "join_date": "join date",
-            "last_name": "lname",
-            "profile_img": "url_to_img",
-            "score": 0.0
-        }
-    }
-    """
-    employer_q = Employer.query.get(employer_id)
-    if employer_q is None:
-        return jsonify({'Error': 'empleador %s no encontrado' %employer_id}), 400
-
-    return jsonify({"employer": employer_q.serialize_public_info()}), 200
-
-
-@app.route('/provider/<int:provider_id>', methods=['GET']) #ready
-@jwt_required
-def get_provider(provider_id):
-    """
-    consulta publica sobre un proveedor
-    *ENDPOINT PRIVADO*
-    return json:
-    {
-        "provider": {
-            "address": {
-                "comuna": "Santiago",
-                "home_number": "2004",
-                "more_info": "depto 206 torre B",
-                "region": "Region Metropolitana",
-                "street": "Av. Vicuña Mackenna"
-            },
-            "categories": [],
-            "first_name": "fname",
-            "id": 9,
-            "join_date": "since",
-            "last_name": "lname",
-            "profile_img": "url_to_img",
-            "score": 0.0
-        }
-    }
-    """
-    provider_q = Provider.query.get(provider_id)
-    if provider_q is None:
-        return jsonify({'Error': 'provedor {} no existe'.format(provider_id)}), 400
-
-    return jsonify({"provider": provider_q.serialize_public_info()}), 200
-
-
-@app.route('/provider/<int:provider_id>/categories', methods=['PUT']) #ready
+@app.route('/provider/categories/<int:provider_id>', methods=['PUT']) #ready
 @jwt_required
 def update_provider_categories(provider_id):
     """
@@ -596,7 +525,47 @@ def update_provider_categories(provider_id):
     })), 200
 
 
-@app.route("/service/request", methods=["POST"])
+@app.route('/service-request', methods=['GET']) #ready
+@jwt_required
+def get_employer():
+    """
+    consulta para obtener los servicios que cumplan con ciertos filtros
+    *ENDPOINT PRIVADO*
+    se debe enviar en url los parametros del filtro:
+        ?cat1=1&cat2=2&...catn=n&comuna=<comuna_id>
+    return json:
+    {
+    services	
+        0	
+            address	{…}
+            category	{…}
+            date_created	"Mon, 13 Jan 2020 22:59:46 GMT"
+            description	""
+            employer	{…}
+            id	1
+            name	"Reparar encimera"
+            status	"active"
+    }
+    """
+    user_email = get_jwt_identity()
+    cat_filter = []
+    com_filter = int(request.args.get('comuna'))
+    emp_filter = User.query.filter(User.email == user_email).first().id
+
+    for arg in request.args:
+        if 'cat' in arg:
+            cat_filter.append(int(request.args[arg]))
+    
+    f_requests = Request.query.filter(
+        Request.category_id.in_(cat_filter),
+        Request.comuna_id == com_filter,
+        #Request.employer_id != emp_filter
+    ).all()
+
+    return jsonify({"services": list(map(lambda x: x.serialize(), f_requests))}), 200
+
+
+@app.route("/service-request/create", methods=["POST"])
 @jwt_required
 def create_service_req():
     """
