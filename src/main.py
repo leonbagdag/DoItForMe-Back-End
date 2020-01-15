@@ -632,7 +632,7 @@ def create_service_request():
     }), 200
 
 
-@app.route("/contract", methods=["GET"]) #ready
+@app.route("/contract", methods=["GET"])
 @jwt_required
 def get_contract():
     """
