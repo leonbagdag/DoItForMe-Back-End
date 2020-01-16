@@ -61,29 +61,21 @@ def handle_invalid_usage(error):
 
 
 @app.route('/')
-@jwt_optional
 def get_site_conf():
     """
     This is a public endpoint. Returns all categories, stats and configurations needed for the front-end app.
     this will be requested for the web app to configure at the start.
     * PUBLIC ENDPOINT *
     """
-    current_user = get_jwt_identity()
-    if current_user:
-        logged = True
-    else:
-        logged = False
-    
     top_categories = Category.query.all()
     top_categories.sort(reverse=True, key=lambda x: len(x.requests))
-    top_categories[4:] = []
+    top_categories[4:] = [] # se eliminan elementos del 4 en adelante para crear el top 4
     response_body = {
             'top_categories': list(map(lambda x: dict({**x.serialize(), 'requests': len(x.requests)}), top_categories)),
             'contracts': Contract.query.count(),
             'offers': Offer.query.count(),
-            'requests': Request.query.count(),
             'users': User.query.count(),
-            'logged': logged
+            'requests': Request.query.count()
         }
     return jsonify(response_body), 200
 
@@ -529,7 +521,7 @@ def update_provider_categories():
     })), 200
 
 
-@app.route('/service-request', methods=['GET']) #ready
+@app.route('/find/service-request', methods=['GET']) #consulted as a provider
 @jwt_required
 def get_service_requests():
     """
@@ -554,29 +546,118 @@ def get_service_requests():
         ]
     }
     """
+    if 'comuna' not in request.args:
+        return jsonify({'Error': 'missing comuna id in request'}), 404
+    
+    com_filter = request.args.get('comuna')
+    if com_filter is None:
+        return jsonify('Error', 'need to specify a id for the comuna'), 400
+    
     user_email = get_jwt_identity()
+    current_user = User.query.filter(User.email == user_email).first()
+    emp_filter = current_user.id #evita que se den como resultados servicios solicitados por el empleador haciendo la consulta actual
+    
     cat_filter = []
-    com_filter = int(request.args.get('comuna'))
-    emp_filter = User.query.filter(User.email == user_email).first().id #evita que se den como resultados servicios solicitados por el empleador haciendo la consulta actual
-
     for arg in request.args:
         if 'cat' in arg:
             cat_filter.append(int(request.args[arg]))
     
     f_requests = Request.query.filter(
-        Request.category_id.in_(cat_filter),
         Request.comuna_id == com_filter,
-        Request.employer_id != emp_filter #evita que el usuario reciba cm respuesta servicios solicitados por el mismo
-    ).all()
+        Request.employer_id != emp_filter #evita que el usuaruo reciba como resultados solicitudes hechas por el mismo
+    )
+   
+    if cat_filter != []: #Si se envian categorias como filtros en el request
+        f_requests = f_requests.filter(Request.category_id.in_(cat_filter))
+    else:
+        user_categories = list(map(lambda x: x.id, current_user.provider.categories)) #utiliza como filtro las categorias ajustadas por el usuario
+        f_requests = f_requests.filter(Request.category_id.in_(user_categories))
 
-    return jsonify({"services": list(map(lambda x: x.serialize(), f_requests))}), 200
+    f_requests.all() #se ejecutan los filtros
+
+    return jsonify({"services": list(map(lambda x: dict({**x.serialize(), **x.serialize_employer()}), f_requests))}), 200
 
 
-@app.route("/service-request/create", methods=["POST"]) #ready
+@app.route("/service-request/<int:request_id>/offer", methods=['POST', 'GET'])
+@jwt_required
+def create_new_offer(request_id): #Crea una oferta a un servicio ->prov; Obtiene las offertas a un servicio ->emp
+    """
+    required:
+    {
+        "description": "description" #is optional
+    }
+    """
+    current_user = User.query.filter(User.email == get_jwt_identity()).first()
+    request_q = Request.query.get(request_id)
+    if request_q is None:
+        return jsonify({'Error': 'request ID not found'}), 404
+
+    if request.method == 'POST':
+
+        if not request.is_json:
+            raise APIException('missing JSON in request', status_code=400)
+
+        if request_q.employer_id == current_user.id:
+            raise APIException('current user as employer in service-request', status_code=401)
+
+        new_offer = Offer(
+            description = request.json.get('description', None),
+            provider = Provider.query.get(current_user.id), #Usuario haciendo la consulta se considera proveedor, ya que está creando una oferta de servicio
+            request = request_q
+        )
+        db.session.add(new_offer)
+        db.session.commit()
+        return jsonify({'msg': 'offer created'}), 201
+
+    if request.method == 'GET':
+
+        if request_q.employer_id != current_user.id:
+            raise APIException('access denied', status_code=401)
+
+        return jsonify(request_q.serialize_offers()), 200
+
+
+@app.route("/offer/<int:offer_id>", methods=['GET', 'PUT']) #As provider owner of the offer
+@jwt_required
+def get_offer_details(offer_id):
+
+    current_user = User.query.filter(User.email == get_jwt_identity()).first()
+    offer_q = Offer.query.get(offer_id)
+    if offer_q is None:
+        return jsonify({'Error': 'Offer ID not Foud'}), 404
+
+    if offer_q.provider_id != current_user.id:
+        return jsonify({"Error": "offer don't belong to current user"}), 400
+
+    response_body = dict({
+        **offer_q.serialize(),
+        **offer_q.serialize_request()
+    })
+
+    return jsonify(response_body), 200
+
+
+@app.route("/my-provider-info", methods=['GET'])
+@jwt_required
+def get_provider_info():
+
+    current_user = User.query.filter(User.email == get_jwt_identity()).first()
+    return jsonify(current_user.serialize_provider_activity()), 200
+
+
+@app.route("/my-employer-info", methods=['GET'])
+@jwt_required
+def get_employer_info():
+
+    current_user = User.query.filter(User.email == get_jwt_identity()).first()
+    return jsonify(current_user.serialize_employer_activity()), 200
+
+
+@app.route("/service-request/create", methods=["POST"]) #ready, as a employer
 @jwt_required
 def create_service_request():
     """
-    crea un request de un servicio
+    crea una solicitud de un servicio
     requerido:
     {
         "name": "service_name",
@@ -631,6 +712,17 @@ def create_service_request():
         'Success': 'new service request created',
         'service_req': new_request.serialize()
     }), 200
+
+
+@app.route("/service-request/offer", methods=["GET"])
+@jwt_required
+def get_service_offers():
+    """
+    required:
+    {
+
+    }
+    """
 
 
 @app.route("/contract", methods=["GET"])
@@ -690,35 +782,6 @@ def create_new_contract():
         'msg': 'contract created',
         'contract': new_contract.serialize()
     }), 200
-
-
-@app.route("/offer/create", methods=['POST']) #ready
-@jwt_required
-def create_new_offer():
-    """
-    required:
-    {
-        "description": "description" #is optional
-        "request": <request_id>
-    }
-    """
-    if not request.is_json:
-        return jsonify({'Error': 'missing JSON in request'}), 400
-
-    current_user = User.query.filter(User.email == get_jwt_identity()).first()
-    
-    request_id = request.json.get('request', None)
-    if request_id is None:
-        return jsonify({'Error': 'request ID not found in request'})
-    request_q = Request.query.get(request_id)
-    if request_q is None:
-        return jsonify({'Error', 'request %s not found' %request_id}), 404
-
-    new_offer = Offer(
-        description = request.json.get('description', None),
-        provider = Provider.query.get(current_user.id), #Usuario haciendo la consulta se considera proveedor, ya que está creando una oferta de servicio
-        request = request_q
-    )
 
 
 """

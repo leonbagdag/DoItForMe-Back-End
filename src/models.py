@@ -217,12 +217,14 @@ class Request(db.Model):
                 'home_number': self.home_number,
                 'more_info': self.more_info,
                 'comuna': self.comuna.serialize()
-            },
-            'employer': self.employer.serialize_public_info()
+            }
         }
 
+    def serialize_employer(self):
+        return {'employer': self.employer.serialize_public_info()}
+
     def serialize_offers(self):
-        return {'offers': list(map(lambda x: x.serialize(), self.offers))}
+        return {'offers': list(map(lambda x: dict({**x.serialize(), **x.serialize_provider()}), self.offers))}
 
     def serialize_contract (self):
         if self.contract is None:
@@ -249,12 +251,13 @@ class Offer(db.Model):
             'id': self.id,
             'date': self.offer_date,
             'description': self.description,
+            'status': self.status
         }
 
     def serialize_request(self):
         return {'request_info': self.request.serialize()}
 
-    def serlialize_provider(self):
+    def serialize_provider(self):
         return {'provider': self.provider.serialize_public_info()}
 
 
