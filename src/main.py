@@ -572,6 +572,16 @@ def get_service_requests():
         f_requests = f_requests.filter(Request.category_id.in_(user_categories))
 
     f_requests.all() #se ejecutan los filtros
+    not_repeated = []
+
+    for r in f_requests:
+        exist = False
+        for o in r.offers:
+            if current_user.id == o.provider_id:
+                exist = True
+        if not exist:
+            not_repeated.append(r)
+    print(not_repeated) # not_repeated contiene todas las solicitudes que cumplen con los filtros, pero a las que el usuario actual no ha ofertado
 
     return jsonify({"services": list(map(lambda x: dict({**x.serialize(), **x.serialize_employer()}), f_requests))}), 200
 
