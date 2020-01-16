@@ -550,14 +550,12 @@ def get_service_requests():
         return jsonify({'Error': 'missing comuna id in request'}), 404
     
     com_filter = request.args.get('comuna')
-    if com_filter is None:
-        return jsonify('Error', 'need to specify a id for the comuna'), 400
     
     user_email = get_jwt_identity()
     current_user = User.query.filter(User.email == user_email).first()
-    emp_filter = current_user.id #evita que se den como resultados servicios solicitados por el empleador haciendo la consulta actual
-    
+    emp_filter = current_user.id #evita que se den como resultados servicios solicitados por el usuario haciendo la consulta actual
     cat_filter = []
+
     for arg in request.args:
         if 'cat' in arg:
             cat_filter.append(int(request.args[arg]))
@@ -617,7 +615,7 @@ def create_new_offer(request_id): #Crea una oferta a un servicio ->prov; Obtiene
         return jsonify(request_q.serialize_offers()), 200
 
 
-@app.route("/offer/<int:offer_id>", methods=['GET', 'PUT']) #As provider owner of the offer
+@app.route("/offer/<int:offer_id>", methods=['GET']) #As provider owner of the offer, obtiene info detallada sobre una oferta
 @jwt_required
 def get_offer_details(offer_id):
 
@@ -714,17 +712,6 @@ def create_service_request():
     }), 200
 
 
-@app.route("/service-request/offer", methods=["GET"])
-@jwt_required
-def get_service_offers():
-    """
-    required:
-    {
-
-    }
-    """
-
-
 @app.route("/contract", methods=["GET"])
 @jwt_required
 def get_contract():
@@ -789,8 +776,6 @@ What's missing:
     3) endpoint for update or delete a service request
     4) endpoint for get contract info as a provider
     5) endpoint for get contract info as a employer
-    7) endpoint for get all the offers for a specific request (as a employer)
-    8) endpoint for get all the offers of a provider
     7) endpoint for update or delete a offer
 
 """
