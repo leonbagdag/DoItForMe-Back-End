@@ -42,6 +42,12 @@ class User(db.Model):
             'profile_img': self.profile_img,
             'first_name': self.fname,
             'last_name': self.lname,
+            'address': {
+                'street': self.street,
+                'home_number': self.home_number,
+                'more_info': self.more_info,
+                'comuna': self.comuna_id
+            }
         }
 
     def serialize_private_info(self):
@@ -49,12 +55,6 @@ class User(db.Model):
             'email': self.email,
             'rut': self.rut,
             'serial': self.rut_serial,
-            'address': {
-                'street': self.street,
-                'home_number': self.home_number,
-                'more_info': self.more_info,
-                'comuna': self.comuna_id
-            }
         }
 
     def serialize_provider_activity(self):
@@ -309,11 +309,6 @@ class Region(db.Model):
             'id': self.id,
             'name': self.name,
         }
-    
-    def serialize_comunas(self):
-        return {
-            'comunas': list(map(lambda x: x.serialize(), self.comunas))
-        }
 
 
 class Comuna(db.Model):
@@ -333,6 +328,7 @@ class Comuna(db.Model):
         return {
             'id': self.id,
             'name': self.name,
+            'region_id': self.region_id
         }
     
     def serialize_region(self):

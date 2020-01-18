@@ -346,6 +346,19 @@ def create_new_user():
     return jsonify({"success":"nuevo usuario registrado"}), 201  # 201 = Created
 
 
+@app.route('/app-data', methods=['GET'])
+def app_data():
+    all_categories = Category.query.all();
+    all_regions = Region.query.all();
+    all_comunas = Comuna.query.all();
+
+    response_body = {
+        'all_categories': list(map(lambda x: x.serialize(), all_categories)),
+        'all_regions': list(map(lambda x: x.serialize(), all_regions))
+    }
+    return jsonify({'app_data': response_body}), 200
+
+
 @app.route('/login', methods=['POST']) #ready
 def user_login():
     """
@@ -394,7 +407,6 @@ def user_login():
         data = {
             'access_token': access_token,
             'user': user_query.serialize(),
-            'msg': 'success',
             'logged': True
         }
         return jsonify(data), 200
@@ -435,10 +447,10 @@ def set_user_profile():
         }
     }
     """
+    current_user = User.query.filter(User.email == get_jwt_identity()).first()
+
     if not request.is_json:
         return jsonify({'Error': 'Missing JSON in request'}), 400
-
-    current_user = User.query.filter(User.email == get_jwt_identity()).first()
 
     body = request.get_json()
 
@@ -584,7 +596,8 @@ def get_service_requests():
 
     response_body = {
         "services": list(map(lambda x: dict({**x.serialize(), **x.serialize_employer()}), f_requests)), 
-        **current_user.serialize_provider_activity()
+        **current_user.serialize_provider_activity(),
+        "user": current_user.serialize()
     }
 
     return jsonify(response_body), 200
