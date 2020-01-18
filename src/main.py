@@ -77,7 +77,7 @@ def get_site_conf():
             'users': User.query.count(),
             'requests': Request.query.count()
         }
-    return jsonify(response_body), 200
+    return jsonify({'stats': response_body}), 200
 
 
 @app.route('/admin/region/create', methods=['POST']) #ready!
@@ -572,8 +572,8 @@ def get_service_requests():
         f_requests = f_requests.filter(Request.category_id.in_(user_categories))
 
     f_requests.all() #se ejecutan los filtros
-    not_repeated = []
 
+    not_repeated = [] # not_repeated contiene todas las solicitudes que cumplen con los filtros, pero a las que el usuario actual no ha ofertado
     for r in f_requests:
         exist = False
         for o in r.offers:
@@ -581,9 +581,13 @@ def get_service_requests():
                 exist = True
         if not exist:
             not_repeated.append(r)
-    print(not_repeated) # not_repeated contiene todas las solicitudes que cumplen con los filtros, pero a las que el usuario actual no ha ofertado
 
-    return jsonify({"services": list(map(lambda x: dict({**x.serialize(), **x.serialize_employer()}), f_requests))}), 200
+    response_body = {
+        "services": list(map(lambda x: dict({**x.serialize(), **x.serialize_employer()}), f_requests)), 
+        **current_user.serialize_provider_activity()
+    }
+
+    return jsonify(response_body), 200
 
 
 @app.route("/service-request/<int:request_id>/offer", methods=['POST', 'GET'])
