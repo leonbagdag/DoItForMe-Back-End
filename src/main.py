@@ -595,7 +595,7 @@ def get_service_requests():
             not_repeated.append(r)
 
     response_body = {
-        "services": list(map(lambda x: dict({**x.serialize(), **x.serialize_employer()}), f_requests)), 
+        "services": list(map(lambda x: dict({**x.serialize(), **x.serialize_employer()}), not_repeated)), 
         **current_user.serialize_provider_activity(),
         "user": current_user.serialize()
     }
