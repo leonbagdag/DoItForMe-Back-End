@@ -394,13 +394,13 @@ def user_login():
     email = request.json.get('email', None)
     password = request.json.get('password', None)
     if email is None:
-        return jsonify({'Error': 'Missin email parameter in JSON'}), 400
+        return jsonify({'Error': 'No se envió email en request'}), 400
     if password is None:
-        return jsonify({'Error': 'Missing password parameter in JSON'}), 400
+        return jsonify({'Error': 'No se envió contraseña en request'}), 400
     
     user_query = User.query.filter_by(email=email).first()
     if user_query is None:
-        return jsonify({'Error': "email: '%s' not found" %email}), 404
+        return jsonify({'Error': "Email no registrado."}), 404
     access_token = create_access_token(identity=user_query, expires_delta=timedelta(days=1))
 
     if user_query.password == password:
@@ -411,7 +411,7 @@ def user_login():
         }
         return jsonify(data), 200
 
-    return jsonify({'Error': 'wrong password, try again...'}), 404
+    return jsonify({'Error': 'Contraseña incorrecta, intenta de nuevo...'}), 404
 
 
 @app.route('/user/profile', methods=['PUT']) #ready
