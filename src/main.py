@@ -310,7 +310,9 @@ def create_new_user():
     Create an user given the email and password.
     requerido: {
         "email":"email@any.com",
-        "password":"password"
+        "password":"password",
+        "f_name": "first_name",
+        "l_name": "last_name"
     }
     respuesta: {
         "success":"nuevo usuario registrado", 200
@@ -324,18 +326,25 @@ def create_new_user():
 
     email = request.json.get('email', None)
     password = request.json.get('password', None)
+    fname = request.json.get('f_name', None)
+    lname = request.json.get('l_name', None)
+
     if not (re.search(ereg, email)):
-        return jsonify({'Error':'Invalid email format'}), 400
+        return jsonify({'Error':'Formato del Email inválido'}), 400
     if password is None:
-        return jsonify({'Error':'password parameter not found in requesr'}), 400
+        return jsonify({'Error':'No se encuentra Contraseña en request'}), 400
+    if fname is None:
+        return jsonify({'Error': 'No se encuentra primer nombre en request'}), 400
+    if lname is None: 
+        return jsonify({'Error': 'No se encuentra apellido en request'}), 400
 
     try:
-        new_user = User(email=email, password=password)
+        new_user = User(email=email, password=password, fname=fname, lname=lname)
         db.session.add(new_user)
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        return jsonify({"Error": "email already exists"}), 400
+        return jsonify({"Error": "Email ya está registrado..."}), 400
 
     new_provider = Provider(user=new_user)
     new_employer = Employer(user=new_user)
