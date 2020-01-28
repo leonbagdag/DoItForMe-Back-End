@@ -357,9 +357,9 @@ def create_new_user():
 
 @app.route('/app-data', methods=['GET'])
 def app_data():
-    all_categories = Category.query.all();
-    all_regions = Region.query.all();
-    all_comunas = Comuna.query.all();
+    all_categories = Category.query.all()
+    all_regions = Region.query.all()
+    all_comunas = Comuna.query.all()
 
     response_body = {
         'all_categories': list(map(lambda x: x.serialize(), all_categories)),
