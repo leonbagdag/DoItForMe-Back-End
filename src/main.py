@@ -335,8 +335,11 @@ def create_new_user():
         return jsonify({'Error':'No se encuentra Contraseña en request'}), 400
     if fname is None:
         return jsonify({'Error': 'No se encuentra primer nombre en request'}), 400
+    fname = fname.replace(" ", "").capitalize()
+
     if lname is None: 
         return jsonify({'Error': 'No se encuentra apellido en request'}), 400
+    lname = lname.replace(" ", "").capitalize()
 
     try:
         new_user = User(email=email, password=password, fname=fname, lname=lname)
