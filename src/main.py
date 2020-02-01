@@ -347,7 +347,7 @@ def create_new_user():
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        return jsonify({"Error": "Email ya está registrado..."}), 400
+        return jsonify({"Error": "Email ya se encuentra registrado..."}), 400
 
     new_provider = Provider(user=new_user)
     new_employer = Employer(user=new_user)
@@ -355,7 +355,7 @@ def create_new_user():
     db.session.add(new_employer)
     db.session.commit()
 
-    return jsonify({"success":"nuevo usuario registrado"}), 201  # 201 = Created
+    return jsonify({"success":"Nuevo usuario registrado"}), 201  # 201 = Created
 
 
 @app.route('/app-data', methods=['GET'])
@@ -413,17 +413,18 @@ def user_login():
     user_query = User.query.filter_by(email=email).first()
     if user_query is None:
         return jsonify({'Error': "Email no registrado."}), 404
+
+    if user_query.password != password:
+        return jsonify({'Error': 'Contraseña incorrecta, intenta de nuevo...'}), 404
+    
     access_token = create_access_token(identity=user_query, expires_delta=timedelta(days=1))
-
-    if user_query.password == password:
-        data = {
-            'access_token': access_token,
-            'user': user_query.serialize(),
-            'logged': True
-        }
-        return jsonify(data), 200
-
-    return jsonify({'Error': 'Contraseña incorrecta, intenta de nuevo...'}), 404
+    data = {
+        'access_token': access_token,
+        'user': user_query.serialize(),
+        'logged': True,
+        'success': "Conexión Exitosa, Bienvenido"
+    }
+    return jsonify(data), 200
 
 
 @app.route('/user/profile', methods=['PUT']) #ready
