@@ -645,7 +645,7 @@ def create_new_offer(request_id): #Crea una oferta a un servicio ->prov; Obtiene
         )
         db.session.add(new_offer)
         db.session.commit()
-        return jsonify({'msg': 'offer created'}), 201
+        return jsonify({'msg': 'Oferta creada con éxito'}), 201
 
     if request.method == 'GET':
 
@@ -739,7 +739,7 @@ def create_service_request():
         street = body['street'],
         home_number = body['home_number'],
         more_info = body['more_info'],
-        employer = Employer.query.get(current_user.id), #Se considera al current_user como empleador, ya que el empleador es el unico que puede solicitar un servicio.
+        employer = current_user, #Se considera al current_user como empleador, ya que el empleador es el unico que puede solicitar un servicio.
         category = category_q,
         comuna = comuna_q
     )
