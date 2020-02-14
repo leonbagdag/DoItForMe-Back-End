@@ -357,6 +357,14 @@ def create_new_user():
 
     return jsonify({"success":"Nuevo usuario registrado"}), 201  # 201 = Created
 
+@app.route('/region/<int:regionID>/comunas', methods=['GET'])
+def get_comunas(regionID):
+    region_q = Region.query.get(regionID)
+
+    if region_q is None:
+        return jsonify({'Error': 'Region: %s no encontrada' %regionID}), 404
+
+    return jsonify({'comunas': list(map(lambda x: x.serialize(), region_q.comunas))})
 
 @app.route('/app-data', methods=['GET'])
 def app_data():
@@ -712,26 +720,30 @@ def create_service_request():
     if not request.is_json:
         return jsonify({'Error': 'missing JSON in request'}), 400
     body = request.get_json()
-    if 'name' not in body:
-        return jsonify({'Error', 'name parameter not found in request body'}), 400
-    if 'description' not in body:
-        return jsonify({'Error': 'description parameter not found in request body'}), 400
-    if 'street' not in body:
-        return jsonify({'Error': 'street parameter not found in request body'}), 400
-    if 'home_number' not in body:
-        return jsonify({'Error': 'home_number parameter not found in reuqest body'}), 400
-    if 'comuna' not in body:
-        return jsonify({'Error': 'comuna ID not found in request body'}), 400
-    if 'category' not in body:
-        return jsonify({'Error': 'category ID not found in request body'}), 400
 
-    comuna_q = Comuna.query.get(body['comuna'])
+    if 'name' not in body or body['name'] == '':
+        return jsonify({'Error': 'Ingresa un nombre a tu solicitud'}), 400
+
+    if 'description' not in body or body['description'] == '':
+        return jsonify({'Error': 'ingresa una descripción a tu solicitud'}), 400
+
+    if 'street' not in body or body['street'] == '':
+        return jsonify({'Error': 'Dirección incompleta...'}), 400
+
+    if 'home_number' not in body:
+        return jsonify({'Error': 'Dirección incompleta...'}), 400
+    if 'comuna' not in body or body['comuna'] == 'Comuna...':
+        return jsonify({'Error': 'Selecciona tu comuna'}), 400
+    if 'category' not in body:
+        return jsonify({'Error': 'Selecciona una categoría para tu solicitud'}), 400
+
+    comuna_q = Comuna.query.filter(Comuna.name == body['comuna']).first() #En body llega el nombre de la comuna
     if comuna_q is None:
-        return jsonify({'Error': 'Comuna %s not found' %body['comuna']}), 404
+        return jsonify({'Error': 'Comuna: %s no encontrada' %body['comuna']}), 404
     
-    category_q = Category.query.get(body['category'])
+    category_q = Category.query.get(int(body['category']))
     if category_q is None:
-        return jsonify({'Error': 'Category %s not found'} %body['category']), 404
+        return jsonify({'Error': 'Categoría: %s no encontrada'} %body['category']), 404
 
     new_request = Request(
         name = body['name'],
@@ -747,8 +759,7 @@ def create_service_request():
     db.session.commit()
 
     return jsonify({
-        'Success': 'new service request created',
-        'service_req': new_request.serialize()
+        'Success': 'Solicitud de Servicio creada Exitosamente'
     }), 200
 
 

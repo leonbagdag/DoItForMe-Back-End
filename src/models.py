@@ -310,7 +310,6 @@ class Region(db.Model):
             'name': self.name,
         }
 
-
 class Comuna(db.Model):
     __tablename__ = 'comuna'
     id = db.Column(db.Integer, primary_key=True)
