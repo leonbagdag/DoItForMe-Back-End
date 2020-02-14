@@ -364,7 +364,7 @@ def get_comunas(regionID):
     if region_q is None:
         return jsonify({'Error': 'Region: %s no encontrada' %regionID}), 404
 
-    return jsonify({'Comunas': list(map(lambda x: x.serialize(), region_q.comunas))})
+    return jsonify({'comunas': list(map(lambda x: x.serialize(), region_q.comunas))})
 
 @app.route('/app-data', methods=['GET'])
 def app_data():

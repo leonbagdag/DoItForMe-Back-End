@@ -310,11 +310,6 @@ class Region(db.Model):
             'name': self.name,
         }
 
-    def serialize_comunas(self):
-        return {
-            comunas: list(map(lambda x: x.serialize(), self.comunas))
-        }
-
 class Comuna(db.Model):
     __tablename__ = 'comuna'
     id = db.Column(db.Integer, primary_key=True)
