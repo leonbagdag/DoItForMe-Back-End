@@ -357,12 +357,12 @@ def create_new_user():
 
     return jsonify({"success":"Nuevo usuario registrado"}), 201  # 201 = Created
 
-@app.route('/region/<int:regionID>/comunas', methods=['GET'])
-def get_comunas(regionID):
-    region_q = Region.query.get(regionID)
+@app.route('/region/<region_name>/comunas', methods=['GET'])
+def get_comunas(region_name):
+    region_q = Region.query.filter(Region.name == region_name).first()
 
     if region_q is None:
-        return jsonify({'Error': 'Region: %s no encontrada' %regionID}), 404
+        return jsonify({'Error': 'Region: %s no encontrada' %region_name}), 404
 
     return jsonify({'comunas': list(map(lambda x: x.serialize(), region_q.comunas))})
 
