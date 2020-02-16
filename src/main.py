@@ -549,7 +549,7 @@ def update_provider_categories():
             exist = False
 
     return jsonify(dict({
-        'Success': 'provider updated',
+        'Success': 'Categorías Actualizadas',
         **provider_q.serialize_categories() 
     })), 200
 
