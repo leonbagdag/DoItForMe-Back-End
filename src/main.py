@@ -428,11 +428,26 @@ def user_login():
     access_token = create_access_token(identity=user_query, expires_delta=timedelta(days=1))
     data = {
         'access_token': access_token,
-        'user': user_query.serialize(),
+        'user': dict({**user_query.serialize(), **user_query.serialize_private_info()}),
         'logged': True,
         'success': "Conexión Exitosa, Bienvenido"
     }
     return jsonify(data), 200
+
+
+@app.route('/user/get_profile', methods=['GET'])
+@jwt_required
+def get_user():
+    current_user = User.query.filter(User.email == get_jwt_identity()).first()
+    if current_user is None:
+        return jsonify({'Error': 'Usuario no encontrado'}), 404    
+
+    response_body = dict({
+        **current_user.serialize(),
+        **current_user.serialize_private_info()
+    })
+
+    return jsonify({'user': response_body}), 200
 
 
 @app.route('/user/profile', methods=['PUT']) #ready
