@@ -217,7 +217,8 @@ class Request(db.Model):
                 'home_number': self.home_number,
                 'more_info': self.more_info,
                 'comuna': self.comuna.serialize()
-            }
+            },
+            'employer': self.employer.user.fname,
         }
 
     def serialize_employer(self):
@@ -251,7 +252,8 @@ class Offer(db.Model):
             'id': self.id,
             'date': self.offer_date,
             'description': self.description,
-            'status': self.status
+            'status': self.status,
+            'request': self.request.serialize()
         }
 
     def serialize_request(self):
